@@ -230,7 +230,7 @@ export default class PackOpeningScene extends Phaser.Scene {
         });
 
         const name = this.add.text(0, -180, item.name.toUpperCase(), {
-            fontFamily: 'Arial Black', fontSize: '20px', color: '#fff', align: 'center', wordWrap: { width: 180 },
+            fontFamily: Theme.fonts.cardName.fontFamily, fontSize: '20px', color: '#fff', align: 'center', wordWrap: { width: 180 },
             stroke: '#000', strokeThickness: 4
         }).setOrigin(0.5);
 
@@ -385,14 +385,18 @@ export default class PackOpeningScene extends Phaser.Scene {
 
         // Add "Done" button
         this.time.delayedCall(2500, () => {
+            // Move it higher up for mobile (avoid nav bars)
             const btnX = this.scale.width - (isMobile ? 80 : 150);
-            const btnY = this.scale.height - (isMobile ? 50 : 80);
+            const btnY = this.scale.height - (isMobile ? 100 : 80);
             const fontSize = isMobile ? '20px' : '24px';
 
             const btn = this.add.text(btnX, btnY, "DONE", {
+                fontFamily: Theme.fonts.header.fontFamily, // Use correct font
                 fontSize: fontSize, backgroundColor: '#fff', color: '#000', padding: { x: 15, y: 8 }
-            }).setInteractive({ useHandCursor: true })
+            })
+                .setInteractive({ useHandCursor: true })
                 .setOrigin(0.5)
+                .setDepth(2000) // Ensure it's on top of cards
                 .on('pointerdown', () => this.scene.start('HomeScene'));
         });
     }
