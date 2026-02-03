@@ -26,7 +26,9 @@ export default class PreloadScene extends Phaser.Scene {
 
         this.load.image('bg_gradient', 'https://labs.phaser.io/assets/skies/space3.png');
         this.load.image('particle_glint', 'https://labs.phaser.io/assets/particles/blue.png');
-        // card_back_highres removed to prevent CORS error (using procedural in scenes)
+
+        // GLOBAL FALLBACK ASSET
+        this.load.image('tex_card_back_v5', 'assets/card_back_v3.png');
 
         // 3. Audio 
         try {

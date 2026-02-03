@@ -550,6 +550,8 @@ export default class PackOpeningScene extends Phaser.Scene {
     private loadExternalImage(target: Phaser.GameObjects.Image, url: string) {
         if (!url) {
             console.warn("Missing URL for card image");
+            // Fallback
+            target.setTexture('tex_card_back_v5');
             return;
         }
 
@@ -566,12 +568,42 @@ export default class PackOpeningScene extends Phaser.Scene {
         this.load.image(url, url);
 
         // Listen for specific file completion
-        // Event format: 'filecomplete-image-' + key
-        this.load.once(`filecomplete-image-${url}`, () => {
+        const onComplete = () => {
             if (target && target.scene) {
                 target.setTexture(url);
                 target.setDisplaySize(240, 330);
-                target.setVisible(true); // Ensure visible
+                target.setVisible(true);
+            }
+        };
+
+        const onError = () => {
+            console.error("Failed to load image:", url);
+            if (target && target.scene) {
+                target.setTexture('tex_card_back_v5'); // Fallback to card back or a "missing" sprite
+                target.setDisplaySize(240, 330);
+                target.setVisible(true);
+            }
+        };
+
+        // Event format: 'filecomplete-image-' + key
+        this.load.once(`filecomplete-image-${url}`, onComplete);
+
+        // Unfortunately standard Phaser Loader doesn't emit per-file 'loaderror' easily on the scene 
+        // without a global listener, but we can check if it failed after a timeout or use the global 
+        // load error event filter.
+
+        // Workaround: Global Error Listener for this file
+        const errorKey = `loaderror-image-${url}`;
+        // Note: Phaser 3.60+ might have better handling, but let's try to catch the global load error
+        // However, simplest "User" fix is often just: if it doesn't load in X seconds, show fallback
+
+        // Actually, let's use a simpler "Image" object strategy if Phaser loader is fussy
+        // But staying with Phaser loader is better for Cache.
+
+        // Let's rely on the global 'loaderror' for now
+        this.load.once(`loaderror`, (file: any) => {
+            if (file.key === url) {
+                onError();
             }
         });
 

@@ -306,6 +306,12 @@ export default class CollectionScene extends Phaser.Scene {
     }
 
     private loadExternalImage(target: Phaser.GameObjects.Image, url: string, w: number, h: number) {
+        if (!url) {
+            target.setTexture('tex_card_back_v5');
+            target.setDisplaySize(w, h);
+            return;
+        }
+
         if (this.textures.exists(url)) {
             target.setTexture(url);
             target.setDisplaySize(w, h);
@@ -313,12 +319,29 @@ export default class CollectionScene extends Phaser.Scene {
         }
 
         this.load.image(url, url);
-        this.load.once(`filecomplete-image-${url}`, () => {
+
+        const onComplete = () => {
             if (target && target.scene) {
                 target.setTexture(url);
                 target.setDisplaySize(w, h);
             }
+        };
+
+        const onError = () => {
+            if (target && target.scene) {
+                target.setTexture('tex_card_back_v5');
+                target.setDisplaySize(w, h);
+            }
+        };
+
+        this.load.once(`filecomplete-image-${url}`, onComplete);
+
+        this.load.once(`loaderror`, (file: any) => {
+            if (file.key === url) {
+                onError();
+            }
         });
+
         this.load.start();
     }
 

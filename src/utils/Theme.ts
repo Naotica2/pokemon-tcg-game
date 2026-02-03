@@ -17,9 +17,9 @@ export const Theme = {
     },
 
     fonts: {
-        header: { fontFamily: 'Impact, Arial Black', fontSize: '32px' },
-        body: { fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '16px' },
-        cardName: { fontFamily: 'Arial Black', fontSize: '18px' }
+        header: { fontFamily: "'Orbitron', 'Impact', sans-serif", fontSize: '32px' },
+        body: { fontFamily: "'Rajdhani', 'Arial', sans-serif", fontSize: '16px' },
+        cardName: { fontFamily: "'Orbitron', 'Arial Black', sans-serif", fontSize: '18px' }
     },
 
     styles: {

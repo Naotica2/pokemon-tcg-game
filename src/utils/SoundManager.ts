@@ -27,7 +27,8 @@ export default class SoundManager {
     // --- PRELOADER ---
     // Call this in your PreloadScene
     public static preload(scene: Phaser.Scene) {
-        const sfxPath = 'sfx/';
+        // Use ABSOLUTE path to avoid issues with deep routes or Vercel rewrites
+        const sfxPath = '/sfx/';
 
         // BGM
         scene.load.audio('bgm_battle', sfxPath + 'bgm_battle.mp3');
