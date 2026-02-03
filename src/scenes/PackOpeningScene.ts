@@ -385,9 +385,10 @@ export default class PackOpeningScene extends Phaser.Scene {
 
         // Add "Done" button
         this.time.delayedCall(2500, () => {
-            // Move it higher up for mobile (avoid nav bars)
-            const btnX = this.scale.width - (isMobile ? 80 : 150);
-            const btnY = this.scale.height - (isMobile ? 100 : 80);
+            // FIX: Move to TOP RIGHT on mobile to avoid bottom nav bars completely
+            const btnX = this.scale.width - (isMobile ? 60 : 150);
+            const btnY = isMobile ? 50 : (this.scale.height - 80);
+
             const fontSize = isMobile ? '20px' : '24px';
 
             const btn = this.add.text(btnX, btnY, "DONE", {

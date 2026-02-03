@@ -40,7 +40,7 @@ export const Theme = {
             // (Simplified for now as rectangle)
 
             const label = scene.add.text(0, 0, text.toUpperCase(), {
-                fontFamily: 'Arial Black', fontSize: '20px', color: '#000'
+                fontFamily: Theme.fonts.header.fontFamily, fontSize: '20px', color: '#000'
             }).setOrigin(0.5);
 
             container.add([bg, label]);
