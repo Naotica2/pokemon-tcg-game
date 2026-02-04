@@ -114,25 +114,16 @@ export default class MarketplaceScene extends Phaser.Scene {
     }
 
     // Helper to unify scroll logic
+    // Helper to unify scroll logic
     private handleScroll(deltaY: number) {
         this.scrollY -= deltaY;
 
         // Calculate dynamic height based on layout
         const isMobile = this.scale.width < 768;
-        // Mobile: 2 Cols. Rows = Length / 2. Height = Rows * (CardHeight + Gap)
-        // Desktop: Rows = Length. Height = Length * RowHeight.
+        const rowHeight = isMobile ? 120 : 100; // Must match renderListings
 
-        let contentHeight = 0;
-        if (isMobile) {
-            const cols = 2;
-            const gap = 15;
-            const cardWidth = (this.scale.width - (gap * (cols + 1))) / cols;
-            const cardHeight = cardWidth * 1.6;
-            const rows = Math.ceil(this.listings.length / cols);
-            contentHeight = rows * (cardHeight + gap) + gap + 100; // +Padding
-        } else {
-            contentHeight = this.listings.length * 100 + 100;
-        }
+        // Single Column List Logic for both now
+        const contentHeight = this.listings.length * rowHeight + 100; // +Padding
 
         const viewHeight = this.scale.height - 200; // Header offset
 
@@ -229,7 +220,7 @@ export default class MarketplaceScene extends Phaser.Scene {
     private renderListings() {
         this.listContainer.removeAll(true);
 
-        const isMobile = this.scale.width < 768; // Breakpoint
+        const isMobile = this.scale.width < 768;
 
         if (this.listings.length === 0) {
             this.add.text(this.scale.width / 2, this.scale.height / 2, "NO ITEMS FOR SALE", {
@@ -241,93 +232,68 @@ export default class MarketplaceScene extends Phaser.Scene {
 
         const fmtMoney = (val: number) => `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-        if (isMobile) {
-            // MOBILE: Compact Card Grid
-            const cols = 2;
-            const gap = 15;
-            const cardWidth = (this.scale.width - (gap * (cols + 1))) / cols;
-            const cardHeight = cardWidth * 1.6; // Aspect ratio
-            const startX = gap + cardWidth / 2;
-            let y = gap + cardHeight / 2;
+        // UNIFIED LIST LAYOUT (Desktop & Mobile)
+        // User requested Mobile to look like Desktop (List View)
 
-            this.listings.forEach((item, index) => {
-                const col = index % cols;
-                const row = Math.floor(index / cols);
+        let y = 0;
+        const rowHeight = isMobile ? 120 : 100; // Taller on mobile for touch targets
+        // Mobile width needs to be full screen minus padding
+        const listWidth = isMobile ? this.scale.width - 20 : Math.min(1200, this.scale.width * 0.95);
+        const startX = this.scale.width / 2;
 
-                const x = startX + col * (cardWidth + gap);
-                const cy = y + row * (cardHeight + gap);
+        this.listings.forEach((item) => {
+            const row = this.add.container(startX, y);
 
-                const container = this.add.container(x, cy);
+            // Row BG
+            const bg = this.add.rectangle(0, 0, listWidth, rowHeight - 10, 0x1f1f1f)
+                .setStrokeStyle(1, 0x333333);
 
-                // BG
-                const bg = this.add.rectangle(0, 0, cardWidth, cardHeight, 0x1f1f1f).setStrokeStyle(1, 0x333333);
+            // Icon 
+            const iconScale = isMobile ? 0.8 : 1.0;
+            // On mobile, keep icon to the left. Desktop, offset from center.
+            const iconX = isMobile ? (-listWidth / 2) + 50 : (-listWidth / 2) + 50;
 
-                // Icon (Smaller)
-                const icon = this.add.image(0, -30, 'card_back_highres');
-                this.loadExternalImage(icon, item.card_data?.name ? '' : ''); // We don't have URL in this mock type, relying on placeholder or name
-                icon.setDisplaySize(cardWidth * 0.6, cardWidth * 0.6 * 1.4);
+            const icon = this.add.image(iconX, 0, 'card_back_highres') // Placeholder
+                .setDisplaySize(60 * iconScale, 84 * iconScale);
 
-                // Text
-                const name = this.add.text(0, 30, item.card_data?.name?.toUpperCase() || 'UNKNOWN', {
-                    fontFamily: Theme.fonts.header.fontFamily, fontSize: '14px', color: '#fff',
-                    wordWrap: { width: cardWidth - 10 }, align: 'center'
-                }).setOrigin(0.5);
+            this.loadExternalImage(icon, item.card_data?.name ? '' : ''); // Load real image if available
 
-                const price = this.add.text(0, 60, fmtMoney(item.price), {
-                    fontFamily: 'Arial Black', fontSize: '16px', color: '#00e676'
-                }).setOrigin(0.5);
+            // Text Info
+            const textX = isMobile ? iconX + 40 : (-listWidth / 2) + 100;
 
-                // TAP TO BUY (Safe)
-                bg.setInteractive({ useHandCursor: true }).on('pointerup', () => {
-                    const isScrolling = (this as any).isScrolling ? (this as any).isScrolling() : false;
-                    if (!isScrolling) {
-                        this.buyItem(item);
-                    }
-                });
+            const nameSize = isMobile ? '18px' : '24px';
+            const name = this.add.text(textX, isMobile ? -25 : -20, item.card_data?.name?.toUpperCase() || 'UNKNOWN', {
+                fontFamily: Theme.fonts.header.fontFamily, fontSize: nameSize, color: '#fff'
+            }).setOrigin(0, 0.5);
 
-                container.add([bg, icon, name, price]);
-                this.listContainer.add(container);
-            });
+            const seller = this.add.text(textX, isMobile ? 0 : 15, `Seller: ${item.seller_profile?.username}`, {
+                fontSize: isMobile ? '14px' : '16px', color: '#888'
+            }).setOrigin(0, 0.5);
 
-            // Adjust scroll limits based on grid height
-            // (Handled generically by content height calc in scroll listener, but we might need to update that logic effectively)
-        } else {
-            // DESKTOP: Wide Rows
-            let y = 0;
-            const rowHeight = 100;
-            const width = Math.min(1200, this.scale.width * 0.95);
-            const startX = this.scale.width / 2;
+            // Price 
+            const priceSize = isMobile ? '20px' : '24px';
+            const priceX = isMobile ? (listWidth / 2) - 20 : (listWidth / 2) - 200;
+            const priceY = isMobile ? -25 : 0; // On mobile, top right
 
-            this.listings.forEach((item) => {
-                const row = this.add.container(startX, y);
+            const priceTag = this.add.text(priceX, priceY, fmtMoney(item.price), {
+                fontFamily: 'Arial Black', fontSize: priceSize, color: '#00e676'
+            }).setOrigin(1, 0.5);
 
-                // Row BG
-                const bg = this.add.rectangle(0, 0, width, rowHeight - 10, 0x1f1f1f).setStrokeStyle(1, 0x333333);
+            // Buy Button
+            const btnX = isMobile ? (listWidth / 2) - 60 : (listWidth / 2) - 80;
+            const btnY = isMobile ? 25 : 0; // On mobile, bottom right
 
-                // Icon 
-                const icon = this.add.image(-width / 2 + 50, 0, 'card_back_highres').setDisplaySize(60, 84);
+            const buyBtn = this.createBuyButton(btnX, btnY, item); // Standard button
 
-                // Text Info
-                const name = this.add.text(-width / 2 + 100, -20, item.card_data?.name?.toUpperCase() || 'UNKNOWN', {
-                    fontFamily: Theme.fonts.header.fontFamily, fontSize: '24px', color: '#fff'
-                });
-                const seller = this.add.text(-width / 2 + 100, 15, `Seller: ${item.seller_profile?.username}`, {
-                    fontSize: '16px', color: '#888'
-                });
+            row.add([bg, icon, name, seller, priceTag, buyBtn]);
+            this.listContainer.add(row);
 
-                // Price & Buy Button
-                const priceTag = this.add.text(width / 2 - 200, 0, fmtMoney(item.price), {
-                    fontFamily: 'Arial Black', fontSize: '24px', color: '#00e676' // Green for money
-                }).setOrigin(1, 0.5);
+            y += rowHeight;
+        });
 
-                const buyBtn = this.createBuyButton(width / 2 - 80, 0, item);
-
-                row.add([bg, icon, name, seller, priceTag, buyBtn]);
-                this.listContainer.add(row);
-
-                y += rowHeight;
-            });
-        }
+        // Update Scroll bounds logic will be handled by handleScroll automatically 
+        // because it calculates based on list length * rowHeight (which we somewhat unified).
+        // We just need to ensure handleScroll uses the right rowHeight.
     }
 
     private createBuyButton(x: number, y: number, item: MarketListing) {

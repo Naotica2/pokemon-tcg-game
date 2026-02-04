@@ -67,7 +67,9 @@ export default class GlobalChatScene extends Phaser.Scene {
         if (this.bgRect) this.bgRect.setSize(width, height);
         if (this.bgGrid) {
             this.bgGrid.setPosition(width / 2, height / 2);
-            this.bgGrid.setSize(width, height);
+            // Grid objects in Phaser 3 often require direct property updates or recreating
+            this.bgGrid.width = width;
+            this.bgGrid.height = height;
         }
 
         // 2. Update Header
@@ -202,7 +204,14 @@ export default class GlobalChatScene extends Phaser.Scene {
 
                 this.inputElement.value = '';
                 this.sendMessage(val);
-                this.inputElement.focus();
+
+                // Mobile: Dismiss Keyboard (Blur) to avoid "Sticky Keyboard" glitches
+                // Desktop: Keep Focus for rapid typing
+                if (this.scale.width < 768) {
+                    this.inputElement.blur();
+                } else {
+                    this.inputElement.focus();
+                }
             }
             return false;
         };
