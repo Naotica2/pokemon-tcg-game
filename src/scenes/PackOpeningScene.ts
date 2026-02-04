@@ -26,6 +26,11 @@ export default class PackOpeningScene extends Phaser.Scene {
     }
 
     create() {
+        // RESET STATE (Important for Restart)
+        this.isOpening = false;
+        this.selectedPackId = null;
+        this.pulledCardsData = [];
+
         try { SoundManager.init(this); SoundManager.getInstance().playBGM('bgm_home'); } catch (e) { }
 
         // 1. GENERATE PLASTIC PACK TEXTURES (Procedural)
@@ -141,15 +146,22 @@ export default class PackOpeningScene extends Phaser.Scene {
 
         const isMobile = this.scale.width < 768;
 
-        const title = this.add.text(this.scale.width / 2, isMobile ? 60 : 80, "SELECT BOOSTER PACK", {
-            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '32px' : '48px', color: '#fff',
+        // Responsive Header
+        const backBtn = this.add.text(isMobile ? 30 : 50, 50, isMobile ? "←" : "← HOME", {
+            fontSize: isMobile ? '32px' : '28px',
+            color: '#aaa',
+            fontFamily: Theme.fonts.header.fontFamily
+        })
+            .setInteractive({ useHandCursor: true })
+            .setOrigin(0, 0.5)
+            .on('pointerdown', () => this.scene.start('HomeScene'));
+
+        const title = this.add.text(this.scale.width / 2, 50, isMobile ? "PACK SHOP" : "SELECT BOOSTER PACK", {
+            fontFamily: Theme.fonts.header.fontFamily,
+            fontSize: isMobile ? '36px' : '48px',
+            color: '#fff',
             shadow: { blur: 10, color: Theme.colors.primary.toString(), fill: true }
         }).setOrigin(0.5);
-
-        // Back Button
-        const backBtn = this.add.text(isMobile ? 20 : 50, isMobile ? 30 : 50, "← HOME", { fontSize: '24px', color: '#aaa' })
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => this.scene.start('HomeScene'));
 
         this.shopContainer.add([title, backBtn]);
 
@@ -399,6 +411,18 @@ export default class PackOpeningScene extends Phaser.Scene {
                 .setOrigin(0.5)
                 .setDepth(2000) // Ensure it's on top of cards
                 .on('pointerdown', () => this.scene.start('HomeScene'));
+
+            // AGAIN BUTTON
+            const btnAgain = this.add.text(btnX, btnY + (isMobile ? 50 : 60), "AGAIN", {
+                fontFamily: Theme.fonts.header.fontFamily,
+                fontSize: fontSize, backgroundColor: '#00e676', color: '#000', padding: { x: 15, y: 8 }
+            })
+                .setInteractive({ useHandCursor: true })
+                .setOrigin(0.5)
+                .setDepth(2000)
+                .on('pointerdown', () => {
+                    this.scene.restart();
+                });
         });
     }
 

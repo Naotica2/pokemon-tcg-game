@@ -99,12 +99,21 @@ export default class CollectionScene extends Phaser.Scene {
     }
 
     private calculateGridMetrics() {
-        // Safe padding
-        const availableWidth = this.scale.width - 40;
+        const isMobile = this.scale.width < 500;
+
+        // Dynamic Card Sizing for very small screens?
+        // Standard width 150. Two cols = 300 + 20 gap + padding.
+        // If screen < 350, we might need to scale down.
+        // But A51 is ~412px, so 150px is fine.
+
+        // Let's ensure proper centering
+        const availableWidth = this.scale.width - (isMobile ? 20 : 40);
         this.COLS = Math.floor(availableWidth / (this.CARD_WIDTH + this.GAP));
         this.COLS = Math.max(2, this.COLS); // Min 2 cols
 
-        // Center the grid offset if needed
+        // If we have excess space, maybe spacing could be dynamic? 
+        // Or just center strictly.
+        // Center the grid offset
         const totalGridWidth = (this.COLS * this.CARD_WIDTH) + ((this.COLS - 1) * this.GAP);
         this.gridOffsetX = (this.scale.width - totalGridWidth) / 2;
     }
@@ -134,12 +143,21 @@ export default class CollectionScene extends Phaser.Scene {
     private createHeader() {
         const headerBg = this.add.rectangle(0, 0, this.scale.width, 100, 0x000000, 0.8).setOrigin(0);
 
-        const title = this.add.text(40, 50, "MY COLLECTION", {
-            fontFamily: Theme.fonts.header.fontFamily, fontSize: '40px', color: '#fff'
+        const isMobile = this.scale.width < 768;
+        const fontSize = isMobile ? '28px' : '40px';
+        const padding = isMobile ? 20 : 40;
+
+        const title = this.add.text(padding, 50, "MY COLLECTION", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: fontSize, color: '#fff'
         }).setOrigin(0, 0.5);
 
-        const backBtn = this.add.text(this.scale.width - 40, 50, "BACK", {
-            fontSize: '24px', color: '#aaa', backgroundColor: '#333', padding: { x: 10, y: 5 }
+        // Adjust Title Width constraint or wrapping if needed, but shrinking font matches screenshot desire for neatness
+
+        const backBtn = this.add.text(this.scale.width - padding, 50, isMobile ? "←" : "BACK", {
+            fontSize: isMobile ? '32px' : '24px',
+            color: '#aaa',
+            backgroundColor: isMobile ? undefined : '#333',
+            padding: { x: 10, y: 5 }
         }).setOrigin(1, 0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.scene.start('HomeScene'));
@@ -393,7 +411,7 @@ export default class CollectionScene extends Phaser.Scene {
         const sellBtn = this.createButton(
             isMobile ? 0 : 200 + 125, // Centered on Right Panel for Desktop
             btnStartY,
-            "QUICK SELL (90%)",
+            "QUICK SELL (60%)",
             0xff5252,
             async () => {
                 await this.instantSellCard(card, 1, overlay);

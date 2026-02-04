@@ -24,6 +24,10 @@ export default class PreloadScene extends Phaser.Scene {
             console.warn('Asset load failed:', file.key);
         });
 
+        // Launch Global Chat Overlay in Parallel
+        this.scene.launch('GlobalChatScene');
+
+        this.load.image('logo', 'assets/logo.png');
         this.load.image('bg_gradient', 'https://labs.phaser.io/assets/skies/space3.png');
         this.load.image('particle_glint', 'https://labs.phaser.io/assets/particles/blue.png');
 

@@ -41,21 +41,84 @@ export default class MarketplaceScene extends Phaser.Scene {
         // Fetch Data
         this.fetchListings();
 
-        // Scroll Input
-        // Scroll Input
+        // Scroll Input (Wheel + Touch Drag)
         this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => {
             if (this.listings.length === 0) return;
-
-            this.scrollY -= deltaY;
-            const contentHeight = this.listings.length * 100;
-            const viewHeight = this.scale.height - 200;
-            const minScroll = Math.min(0, -(contentHeight - viewHeight));
-            this.scrollY = Phaser.Math.Clamp(this.scrollY, minScroll, 0);
-
-            this.listContainer.y = this.scrollY;
+            this.handleScroll(deltaY);
         });
 
+        // Touch Drag Logic
+        let isDown = false;
+        let startY = 0;
+        let lastY = 0;
+        const dragThreshold = 10;
+        let hasScrolled = false;
+
+        this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            isDown = true;
+            startY = pointer.y;
+            lastY = pointer.y;
+            hasScrolled = false;
+        });
+
+        this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+            if (!isDown) return;
+
+            const deltaY = lastY - pointer.y; // Inverted for "drag up to scroll down"
+            lastY = pointer.y;
+
+            // Only register as scroll if moved significantly total
+            if (Math.abs(pointer.y - startY) > dragThreshold) {
+                hasScrolled = true;
+            }
+
+            if (this.listings.length > 0) {
+                this.handleScroll(deltaY);
+            }
+        });
+
+        this.input.on('pointerup', () => {
+            isDown = false;
+        });
+
+        // Store scroll state in scene for buttons to check
+        (this as any).isScrolling = () => hasScrolled;
+
         this.scale.on('resize', () => this.scene.restart());
+    }
+
+    // Helper to unify scroll logic
+    private handleScroll(deltaY: number) {
+        this.scrollY -= deltaY;
+
+        // Calculate dynamic height based on layout
+        const isMobile = this.scale.width < 768;
+        // Mobile: 2 Cols. Rows = Length / 2. Height = Rows * (CardHeight + Gap)
+        // Desktop: Rows = Length. Height = Length * RowHeight.
+
+        let contentHeight = 0;
+        if (isMobile) {
+            const cols = 2;
+            const gap = 15;
+            const cardWidth = (this.scale.width - (gap * (cols + 1))) / cols;
+            const cardHeight = cardWidth * 1.6;
+            const rows = Math.ceil(this.listings.length / cols);
+            contentHeight = rows * (cardHeight + gap) + gap + 100; // +Padding
+        } else {
+            contentHeight = this.listings.length * 100 + 100;
+        }
+
+        const viewHeight = this.scale.height - 200; // Header offset
+
+        // Only clamp if content > view
+        if (contentHeight > viewHeight) {
+            const minScroll = -(contentHeight - viewHeight);
+            this.scrollY = Phaser.Math.Clamp(this.scrollY, minScroll, 0);
+        } else {
+            this.scrollY = 0;
+        }
+
+        this.listContainer.y = this.scrollY;
     }
 
     private async fetchListings() {
@@ -119,8 +182,12 @@ export default class MarketplaceScene extends Phaser.Scene {
     }
 
     private createHeader() {
-        const backBtn = this.add.text(50, 50, "← HOME", {
-            fontFamily: Theme.fonts.header.fontFamily, fontSize: '32px', color: '#fff'
+        // Shared responsive sizing
+        const isMobile = this.scale.width < 768;
+        const padding = isMobile ? 20 : 50;
+
+        const backBtn = this.add.text(padding, 50, isMobile ? "←" : "← HOME", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '28px' : '32px', color: '#fff'
         }).setInteractive({ useHandCursor: true });
 
         backBtn.on('pointerdown', () => {
@@ -128,9 +195,9 @@ export default class MarketplaceScene extends Phaser.Scene {
             this.scene.start('HomeScene');
         });
 
-        this.add.text(this.scale.width / 2, 50, "GLOBAL MARKETPLACE", {
-            fontFamily: Theme.fonts.header.fontFamily, fontSize: '42px', color: Theme.colors.success.toString()
-        }).setOrigin(0.5, 0);
+        this.add.text(this.scale.width / 2, 50, isMobile ? "MARKET" : "GLOBAL MARKETPLACE", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '32px' : '42px', color: Theme.colors.success.toString()
+        }).setOrigin(0.5, 0.5); // Center Vertical to match back button
     }
 
     private renderListings() {
@@ -184,8 +251,13 @@ export default class MarketplaceScene extends Phaser.Scene {
                     fontFamily: 'Arial Black', fontSize: '16px', color: '#00e676'
                 }).setOrigin(0.5);
 
-                // Simple Tap to Buy
-                bg.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.buyItem(item));
+                // TAP TO BUY (Safe)
+                bg.setInteractive({ useHandCursor: true }).on('pointerup', () => {
+                    const isScrolling = (this as any).isScrolling ? (this as any).isScrolling() : false;
+                    if (!isScrolling) {
+                        this.buyItem(item);
+                    }
+                });
 
                 container.add([bg, icon, name, price]);
                 this.listContainer.add(container);
@@ -243,7 +315,56 @@ export default class MarketplaceScene extends Phaser.Scene {
         return container;
     }
 
-    private async buyItem(item: MarketListing, btnBg?: Phaser.GameObjects.Rectangle, btnText?: Phaser.GameObjects.Text) {
+    private buyItem(item: MarketListing, btnBg?: Phaser.GameObjects.Rectangle, btnText?: Phaser.GameObjects.Text) {
+        // Show Confirmation First
+        this.createConfirmationModal(item, () => {
+            this.executeBuy(item, btnBg, btnText);
+        });
+    }
+
+    private createConfirmationModal(item: MarketListing, onConfirm: () => void) {
+        // Overlay
+        const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.8)
+            .setOrigin(0).setDepth(3000).setInteractive();
+
+        const box = this.add.container(this.scale.width / 2, this.scale.height / 2).setDepth(3001);
+
+        const boxBg = this.add.rectangle(0, 0, 400, 250, 0x222222).setStrokeStyle(2, 0x444444);
+
+        const title = this.add.text(0, -80, "CONFIRM PURCHASE", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: '28px', color: Theme.colors.warning.toString()
+        }).setOrigin(0.5);
+
+        const desc = this.add.text(0, -20, `Buy ${item.card_data?.name}?\nPrice: $${item.price.toLocaleString()}`, {
+            fontSize: '20px', color: '#fff', align: 'center', wordWrap: { width: 350 }
+        }).setOrigin(0.5);
+
+        // Buttons
+        const cancelBtn = this.add.rectangle(-100, 70, 150, 50, 0x555555).setInteractive({ useHandCursor: true });
+        const cancelText = this.add.text(-100, 70, "CANCEL", { fontSize: '20px', color: '#fff' }).setOrigin(0.5);
+
+        const confirmBtn = this.add.rectangle(100, 70, 150, 50, Theme.colors.success).setInteractive({ useHandCursor: true });
+        const confirmText = this.add.text(100, 70, "BUY NOW", { fontSize: '20px', color: '#000', fontFamily: 'Arial Black' }).setOrigin(0.5);
+
+        box.add([boxBg, title, desc, cancelBtn, cancelText, confirmBtn, confirmText]);
+
+        // Logic
+        cancelBtn.on('pointerdown', () => {
+            overlay.destroy();
+            box.destroy();
+        });
+
+        confirmBtn.on('pointerdown', () => {
+            overlay.destroy();
+            box.destroy();
+            onConfirm();
+        });
+
+        // Also close on background click? Optional.
+        // overlay.on('pointerdown', () => { overlay.destroy(); box.destroy(); });
+    }
+
+    private async executeBuy(item: MarketListing, btnBg?: Phaser.GameObjects.Rectangle, btnText?: Phaser.GameObjects.Text) {
         // Real Buy Logic
         SoundManager.getInstance().playSFX('click');
         if (btnBg) btnBg.setFillStyle(0x555555);
