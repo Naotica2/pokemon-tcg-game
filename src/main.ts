@@ -9,7 +9,8 @@ import MarketplaceScene from './scenes/MarketplaceScene';
 
 import ProfileScene from './scenes/ProfileScene';
 import AuthScene from './scenes/AuthScene';
-import GlobalChatScene from './scenes/GlobalChatScene';
+// import GlobalChatScene from './scenes/GlobalChatScene';
+import LobbyScene from './scenes/LobbyScene';
 
 const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
@@ -22,7 +23,8 @@ const config: Phaser.Types.Core.GameConfig = {
     },
     scene: [
         PreloadScene,
-        GlobalChatScene,
+        // GlobalChatScene,
+        LobbyScene, // Add LobbyScene
         AuthScene,
         HomeScene,
         ProfileScene,

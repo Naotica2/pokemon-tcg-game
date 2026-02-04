@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { Theme } from '../utils/Theme';
 import SoundManager from '../utils/SoundManager';
-import { supabase } from '../utils/supabaseClient';
+import { supabase, getCurrentUser } from '../utils/supabaseClient';
 
 export default class HomeScene extends Phaser.Scene {
     constructor() {
@@ -105,7 +105,6 @@ export default class HomeScene extends Phaser.Scene {
             { label: "MY COLLECTION", scene: 'CollectionScene', color: Theme.colors.secondary },
             { label: "OPEN PACKS (GACHA)", scene: 'PackOpeningScene', color: Theme.colors.primary },
             { label: "M A R K E T", scene: 'MarketplaceScene', color: Theme.colors.success },
-            { label: "GLOBAL CHAT", scene: 'GlobalChatScene', color: 0x00e676 }, // Added Chat
             { label: "MY PROFILE", scene: 'ProfileScene', color: 0x9966ff },
         ];
 
@@ -183,12 +182,30 @@ export default class HomeScene extends Phaser.Scene {
 
         bg.on('pointerdown', () => {
             SoundManager.getInstance().playSFX('click');
-            // Transition effect
+
+            // Special Case: Battle Scene requires Matchmaking
+            if (item.scene === 'BattleScene') {
+                this.handleBattleClick();
+                return;
+            }
+
+            // Standard Transition
             this.cameras.main.fadeOut(300, 0, 0, 0);
             this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
                 this.scene.start(item.scene);
             });
         });
+    }
+
+    private async handleBattleClick() {
+        const user = await getCurrentUser();
+        if (!user) {
+            alert("Please Login to Battle!");
+            return;
+        }
+
+        // Navigate to Lobby
+        this.scene.start('LobbyScene');
     }
 
     private createAudioToggle() {

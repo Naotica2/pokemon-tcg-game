@@ -162,9 +162,20 @@ export default class CollectionScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.scene.start('HomeScene'));
 
+        // DECK MODE TOGGLE
+        const deckBtn = this.add.text(this.scale.width - padding - 140, 50, "🛠️ PARTY", {
+            fontSize: isMobile ? '24px' : '24px',
+            color: '#fff',
+            backgroundColor: '#2196f3',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(1, 0.5)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.toggleDeckMode());
+
         this.add.existing(headerBg);
         this.add.existing(title);
         this.add.existing(backBtn);
+        this.add.existing(deckBtn);
     }
 
     // Virtual Rendering Logic -> Update generic StartX
@@ -318,7 +329,11 @@ export default class CollectionScene extends Phaser.Scene {
                 // Let's rely on the pointer up vs down distance check directly here
                 const dist = Phaser.Math.Distance.Between(pointer.downX, pointer.downY, pointer.upX, pointer.upY);
                 if (dist < 10) {
-                    this.showCardDetail(card);
+                    if (this.isDeckMode) {
+                        this.toggleCardInDeck(card, container);
+                    } else {
+                        this.showCardDetail(card);
+                    }
                 }
             });
     }
@@ -573,5 +588,100 @@ export default class CollectionScene extends Phaser.Scene {
             targets: toast, alpha: 0, delay: 2000, duration: 500,
             onComplete: () => toast.destroy()
         });
+    }
+    private isDeckMode = false;
+    private currentDeck: string[] = []; // Array of card_ids
+
+    private toggleDeckMode() {
+        this.isDeckMode = !this.isDeckMode;
+
+        // Visual updates
+        if (this.isDeckMode) {
+            this.showToast("PARTY MODE: Select exactly 6 cards", 0x00e676);
+            this.createDeckUI();
+        } else {
+            // Destroy Deck UI
+            if (this.deckUIContainer) this.deckUIContainer.destroy();
+            this.updateGrid(); // Redraw normal grid
+        }
+    }
+
+    private deckUIContainer?: Phaser.GameObjects.Container;
+    private deckCountText?: Phaser.GameObjects.Text;
+
+    private createDeckUI() {
+        if (this.deckUIContainer) this.deckUIContainer.destroy();
+
+        this.deckUIContainer = this.add.container(0, this.scale.height - 100).setScrollFactor(0).setDepth(1000);
+
+        // Background Bar
+        const bg = this.add.rectangle(this.scale.width / 2, 50, this.scale.width, 100, 0x000000, 0.9);
+
+        // Count Text
+        this.deckCountText = this.add.text(50, 50, `DECK: ${this.currentDeck.length}`, {
+            fontSize: '24px', color: '#fff', fontStyle: 'bold'
+        }).setOrigin(0, 0.5);
+
+        // Save Button
+        const saveBtn = this.add.container(this.scale.width - 150, 50);
+        const saveBg = this.add.rectangle(0, 0, 200, 60, 0x00e676)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.saveDeck());
+        const saveTxt = this.add.text(0, 0, "SAVE DECK", { fontSize: '20px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5);
+        saveBtn.add([saveBg, saveTxt]);
+
+        this.deckUIContainer.add([bg, this.deckCountText, saveBtn]);
+    }
+
+    private toggleCardInDeck(card: CardData, container: Phaser.GameObjects.Container) {
+        if (!this.isDeckMode) return;
+
+        const idx = this.currentDeck.indexOf(card.card_id);
+        if (idx >= 0) {
+            // Remove
+            this.currentDeck.splice(idx, 1);
+            // Visual unselect
+            // For now, simpler: Update Grid or overlay icon?
+            // Let's just punch a green border or checkmark
+            const check = container.getByName('check');
+            if (check) check.destroy();
+        } else {
+            // Add
+            // Limit?
+            if (this.currentDeck.length >= 6) { // MAX 6
+                this.showToast("Max 6 Pokemon!", 0xff0000);
+                return;
+            }
+            this.currentDeck.push(card.card_id);
+            // Visual select
+            const check = this.add.circle(0, 0, 40, 0x00e676, 0.8).setName('check');
+            const icon = this.add.text(0, 0, "✔️", { fontSize: '32px' }).setOrigin(0.5).setName('check');
+            container.add([check, icon]);
+        }
+
+        if (this.deckCountText) {
+            this.deckCountText.setText(`PARTY: ${this.currentDeck.length} / 6`);
+            this.deckCountText.setColor(this.currentDeck.length === 6 ? '#00e676' : '#fff');
+        }
+    }
+
+    private async saveDeck() {
+        if (this.currentDeck.length !== 6) {
+            this.showToast("Party must have exactly 6 Pokemon!", 0xff0000);
+            return;
+        }
+
+        const { error } = await supabase.rpc('save_deck', {
+            _name: "My Party",
+            _cards: this.currentDeck,
+            _set_active: true
+        });
+
+        if (error) {
+            this.showToast("Save Failed: " + error.message, 0xff0000);
+        } else {
+            this.showToast("PARTY SAVED! READY TO BATTLE!", 0x00e676);
+            this.toggleDeckMode(); // Exit mode
+        }
     }
 }
