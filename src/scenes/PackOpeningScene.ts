@@ -147,8 +147,8 @@ export default class PackOpeningScene extends Phaser.Scene {
         const isMobile = this.scale.width < 768;
 
         // Responsive Header
-        const backBtn = this.add.text(isMobile ? 30 : 50, 50, isMobile ? "←" : "← HOME", {
-            fontSize: isMobile ? '32px' : '28px',
+        const backBtn = this.add.text(isMobile ? 30 : 50, 50, "← HOME", {
+            fontSize: isMobile ? '24px' : '28px',
             color: '#aaa',
             fontFamily: Theme.fonts.header.fontFamily
         })
@@ -403,7 +403,7 @@ export default class PackOpeningScene extends Phaser.Scene {
 
             const fontSize = isMobile ? '20px' : '24px';
 
-            const btn = this.add.text(btnX, btnY, "DONE", {
+            const btn = this.add.text(btnX, btnY, "HOME", {
                 fontFamily: Theme.fonts.header.fontFamily, // Use correct font
                 fontSize: fontSize, backgroundColor: '#fff', color: '#000', padding: { x: 15, y: 8 }
             })

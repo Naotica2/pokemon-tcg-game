@@ -153,8 +153,8 @@ export default class CollectionScene extends Phaser.Scene {
 
         // Adjust Title Width constraint or wrapping if needed, but shrinking font matches screenshot desire for neatness
 
-        const backBtn = this.add.text(this.scale.width - padding, 50, isMobile ? "←" : "BACK", {
-            fontSize: isMobile ? '32px' : '24px',
+        const backBtn = this.add.text(this.scale.width - padding, 50, "← HOME", {
+            fontSize: isMobile ? '24px' : '24px',
             color: '#aaa',
             backgroundColor: isMobile ? undefined : '#333',
             padding: { x: 10, y: 5 }
