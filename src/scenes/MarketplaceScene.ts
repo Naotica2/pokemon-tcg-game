@@ -19,6 +19,7 @@ interface MarketListing {
 }
 
 export default class MarketplaceScene extends Phaser.Scene {
+    private isModalOpen = false; // Flag to disable background interaction
     private listings: MarketListing[] = [];
     private scrollY = 0;
     private container!: Phaser.GameObjects.Container;
@@ -43,7 +44,7 @@ export default class MarketplaceScene extends Phaser.Scene {
 
         // Scroll Input (Wheel + Touch Drag)
         this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => {
-            if (this.listings.length === 0) return;
+            if (this.listings.length === 0 || this.isModalOpen) return; // Block scroll if modal open
             this.handleScroll(deltaY);
         });
 
@@ -55,6 +56,7 @@ export default class MarketplaceScene extends Phaser.Scene {
         let hasScrolled = false;
 
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+            if (this.isModalOpen) return; // Block drag start if modal open
             isDown = true;
             startY = pointer.y;
             lastY = pointer.y;
@@ -62,7 +64,7 @@ export default class MarketplaceScene extends Phaser.Scene {
         });
 
         this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-            if (!isDown) return;
+            if (!isDown || this.isModalOpen) return;
 
             const deltaY = lastY - pointer.y; // Inverted for "drag up to scroll down"
             lastY = pointer.y;
@@ -333,9 +335,19 @@ export default class MarketplaceScene extends Phaser.Scene {
     }
 
     private createConfirmationModal(item: MarketListing, onConfirm: () => void) {
-        // Overlay
-        const overlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.8)
-            .setOrigin(0).setDepth(3000).setInteractive();
+        if (this.isModalOpen) return; // Prevent double open
+        this.isModalOpen = true;
+
+        // 1. Full Screen Blocker (Interactive High Depth)
+        const blocker = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x000000, 0.7)
+            .setOrigin(0)
+            .setDepth(3000)
+            .setInteractive(); // Swallows input
+
+        // Stop propagation just in case
+        blocker.on('pointerdown', (e: any) => {
+            e.event.stopPropagation();
+        });
 
         const box = this.add.container(this.scale.width / 2, this.scale.height / 2).setDepth(3001);
 
@@ -358,20 +370,24 @@ export default class MarketplaceScene extends Phaser.Scene {
 
         box.add([boxBg, title, desc, cancelBtn, cancelText, confirmBtn, confirmText]);
 
-        // Logic
-        cancelBtn.on('pointerdown', () => {
-            overlay.destroy();
+        // Helpers for closing
+        const close = () => {
+            blocker.destroy();
             box.destroy();
+            this.isModalOpen = false;
+        };
+
+        // Logic
+        cancelBtn.on('pointerdown', (e: any) => {
+            e.event.stopPropagation();
+            close();
         });
 
-        confirmBtn.on('pointerdown', () => {
-            overlay.destroy();
-            box.destroy();
+        confirmBtn.on('pointerdown', (e: any) => {
+            e.event.stopPropagation();
+            close();
             onConfirm();
         });
-
-        // Also close on background click? Optional.
-        // overlay.on('pointerdown', () => { overlay.destroy(); box.destroy(); });
     }
 
     private async executeBuy(item: MarketListing, btnBg?: Phaser.GameObjects.Rectangle, btnText?: Phaser.GameObjects.Text) {

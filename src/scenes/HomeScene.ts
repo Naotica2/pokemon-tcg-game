@@ -105,6 +105,7 @@ export default class HomeScene extends Phaser.Scene {
             { label: "MY COLLECTION", scene: 'CollectionScene', color: Theme.colors.secondary },
             { label: "OPEN PACKS (GACHA)", scene: 'PackOpeningScene', color: Theme.colors.primary },
             { label: "M A R K E T", scene: 'MarketplaceScene', color: Theme.colors.success },
+            { label: "GLOBAL CHAT", scene: 'GlobalChatScene', color: 0x00e676 }, // Added Chat
             { label: "MY PROFILE", scene: 'ProfileScene', color: 0x9966ff },
         ];
 

@@ -30,186 +30,96 @@ export default class GlobalChatScene extends Phaser.Scene {
     }
 
     create() {
-        // Z-Index High to stay on top
-        this.scene.bringToTop();
+        // Standard Scene Setup (No BringToTop, No Event Listeners for overlay)
+        this.createBackground();
+        this.createHeader();
 
-        // Ensure this scene stays on top whenever another scene starts
-        // Use Game-level events because SceneManager events might not be exposed on the scene property directly in this version's typings
-        this.game.events.on('step', () => {
-            // Checking every step is overkill?
-            // Let's just rely on "bringToTop" being called once at create, and maybe rely on the fact that
-            // we launch it in parallel.
-            // Actually, simplest hack:
-            if (this.scene.manager.getAt(this.scene.manager.scenes.length - 1) !== this) {
-                this.scene.bringToTop();
-            }
-        });
+        // Chat Content Container
+        this.container = this.add.container(0, 0); // Full screen container
 
-        // 1. Chat Icon (Always Visible)
-        this.createChatIcon();
+        // Message Display
+        this.createMessageList();
 
-        // 2. Chat Box (Hidden by default)
-        this.createChatWindow();
-
-        // 3. Subscription logic
+        // Subscription
         this.startRealtimeSubscription();
+        this.fetchMessages();
 
-        // Resize Listener
-        this.scale.on('resize', this.handleResize, this);
+        // Input Setup (Pinned to bottom)
+        this.createDOMInput();
+
+        this.scale.on('resize', () => {
+            // Simple restart is safest for full screen layout changes
+            this.scene.restart();
+        });
     }
 
-    private handleResize() {
-        // Update Icon Position
+    private createBackground() {
+        this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x111111).setOrigin(0);
+        this.add.grid(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 40, 40, 0x000000, 0, 0x222222, 0.5);
+    }
+
+    private createHeader() {
         const isMobile = this.scale.width < 768;
-        const yOffset = isMobile ? 220 : 140; // Higher on mobile
-        this.chatIcon.setPosition(this.scale.width - 60, this.scale.height - yOffset);
+        const padding = isMobile ? 20 : 50;
 
-        // Update Box Position/Size
-        // We'll just toggle reset
-        if (this.isOpen) {
-            this.toggleChat(); // Close
-            this.toggleChat(); // Open (Re-render)
-        }
-    }
+        const backBtn = this.add.text(padding, 50, isMobile ? "←" : "← HOME", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '28px' : '32px', color: '#fff'
+        }).setInteractive({ useHandCursor: true });
 
-    private createChatIcon() {
-        // Bottom Right floating button
-        const isMobile = this.scale.width < 768;
-        const yOffset = isMobile ? 220 : 140; // Higher on mobile
-
-        const x = this.scale.width - 60;
-        const y = this.scale.height - yOffset;
-
-        this.chatIcon = this.add.container(x, y);
-
-        const bg = this.add.circle(0, 0, 30, 0x000000).setStrokeStyle(2, 0x00ff00);
-        const icon = this.add.text(0, 0, "💬", { fontSize: '30px' }).setOrigin(0.5);
-
-        const unreadBadge = this.add.circle(15, -15, 10, 0xff0000).setVisible(false);
-
-        this.chatIcon.add([bg, icon, unreadBadge]);
-        this.chatIcon.setDepth(10000); // Super high
-
-        bg.setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => this.toggleChat());
-
-        // Hover
-        bg.on('pointerover', () => this.tweens.add({ targets: this.chatIcon, scale: 1.1, duration: 100 }));
-        bg.on('pointerout', () => this.tweens.add({ targets: this.chatIcon, scale: 1.0, duration: 100 }));
-    }
-
-    private createChatWindow() {
-        // Overlay container
-        this.container = this.add.container(0, 0).setVisible(false).setDepth(10001);
-
-        // Setup empty structures, populate on open
-    }
-
-    private async toggleChat() {
-        this.isOpen = !this.isOpen;
-        this.container.setVisible(this.isOpen);
-
-        if (this.isOpen) {
-            // Render Window Content dynamic to size
-            this.container.removeAll(true);
-            this.renderWindowContent();
-            this.fetchMessages();
-
-            // Create Input
-            this.createDOMInput();
-        } else {
-            // Destroy Input AND Button to prevent it sticking around
-            this.cleanupDOM();
-        }
-    }
-
-    private cleanupDOM() {
-        if (this.inputElement && document.body.contains(this.inputElement)) {
-            document.body.removeChild(this.inputElement);
-            this.inputElement = undefined;
-        }
-        if (this.domBtn && document.body.contains(this.domBtn)) {
-            document.body.removeChild(this.domBtn);
-            this.domBtn = undefined;
-        }
-    }
-
-    private renderWindowContent() {
-        const isMobile = this.scale.width < 768;
-        const w = isMobile ? this.scale.width * 0.9 : 400;
-        const h = isMobile ? this.scale.height * 0.5 : 500; // Reduced height on mobile
-
-        // Move higher on mobile to avoid keyboard covering it
-        const x = isMobile ? this.scale.width / 2 : this.scale.width - (w / 2) - 20;
-        const y = isMobile ? (this.scale.height * 0.4) : this.scale.height - (h / 2) - 100; // 40% from top instead of centered
-
-        // 1. Full Screen Blocker (Invisible/Dim) to stop clicks passing through
-        // This ensures you don't accidentally click the game scene behind the chat
-        const blocker = this.add.rectangle(
-            this.scale.width / 2,
-            this.scale.height / 2,
-            this.scale.width,
-            this.scale.height,
-            0x000000,
-            0.5 // Slight dim for focus
-        ).setInteractive(); // interactive but no handler = swallows input in Phaser (usually)
-
-        // Make sure it actually blocks. Phaser input top-down. 
-        // We need to explicitly stop propagation or just exist on top.
-        blocker.on('pointerdown', (e: any) => {
-            // Optional: Close on backdrop click? 
-            // User asked to "not click background". 
-            // Let's just block it.
-            // this.toggleChat(); 
+        backBtn.on('pointerdown', () => {
+            SoundManager.getInstance().playSFX('click');
+            this.shutdown(); // Clean DOM
+            this.scene.start('HomeScene');
         });
 
-        // 2. Chat Background
-        const bg = this.add.rectangle(x, y, w, h, 0x000000, 0.9)
-            .setStrokeStyle(1, 0x333333)
-            .setInteractive(); // Also make the window itself interactive
-
-        // Header
-        const header = this.add.text(x - w / 2 + 20, y - h / 2 + 20, "GLOBAL CHAT", {
-            fontSize: '20px', fontFamily: Theme.fonts.header.fontFamily, color: '#00e676'
-        });
-
-        // Close
-        const close = this.add.text(x + w / 2 - 40, y - h / 2 + 20, "X", {
-            fontSize: '24px', color: '#fff'
-        }).setInteractive({ useHandCursor: true }).on('pointerdown', () => this.toggleChat());
-
-        // Messages Area (Placeholder Text Object for now, or BitmapText for perf)
-        // A scrollable container would be better, but simple text mask is easier for MVP
-        this.messageListText = this.add.text(x - w / 2 + 20, y - h / 2 + 60, "Loading...", {
-            fontSize: '14px', color: '#fff', wordWrap: { width: w - 40 }
-        });
-
-        this.container.add([blocker, bg, header, close, this.messageListText]);
+        this.add.text(this.scale.width / 2, 50, "GLOBAL CHAT", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '32px' : '42px', color: Theme.colors.success.toString()
+        }).setOrigin(0.5, 0.5);
     }
+
+    private createMessageList() {
+        const isMobile = this.scale.width < 768;
+        const w = isMobile ? this.scale.width * 0.9 : 800; // Wide on desktop
+        const x = this.scale.width / 2;
+        const y = 120; // Below header
+
+        // Placeholder for messages (Simple Text for now)
+        this.messageListText = this.add.text(x - w / 2, y, "Loading messages...", {
+            fontSize: isMobile ? '16px' : '18px',
+            color: '#eee',
+            wordWrap: { width: w },
+            lineSpacing: 10
+        });
+    }
+
+    // Removed Overlay specific methods (createChatIcon, createChatWindow, toggleChat, cleanupDOM helper logic handles shutdown)
+
 
     private createDOMInput() {
         // Cleanup old first just in case
         this.cleanupDOM();
 
         const isMobile = this.scale.width < 768;
-        const w = isMobile ? this.scale.width * 0.9 : 400;
-        const h = isMobile ? this.scale.height * 0.5 : 500;
+        const w = isMobile ? this.scale.width - 40 : Math.min(600, this.scale.width * 0.6); // Full width-ish
 
-        const x = isMobile ? (this.scale.width - w) / 2 : this.scale.width - w - 20;
-        const y = isMobile ? (this.scale.height * 0.4) + (h / 2) - 40 : this.scale.height - 150; // Match renderWindowContent Y calculation
+        // Pinned to bottom
+        const bottomY = this.scale.height - 80; // Safe area from bottom
+        const startX = (this.scale.width - w) / 2;
 
         this.inputElement = document.createElement('input');
         this.inputElement.type = 'text';
         this.inputElement.placeholder = 'Type a message...';
         Object.assign(this.inputElement.style, {
             position: 'absolute',
-            left: `${x + 20}px`,
-            top: `${y}px`,
-            width: `${w - 100}px`,
-            height: '30px',
+            left: `${startX}px`,
+            top: `${bottomY}px`,
+            width: `${w - 80}px`, // Room for button
+            height: '40px',
             backgroundColor: '#222',
             color: 'white',
+            fontSize: '16px',
             border: '1px solid #444',
+            borderRadius: '4px',
             zIndex: '10005',
             padding: '5px'
         });
@@ -229,13 +139,14 @@ export default class GlobalChatScene extends Phaser.Scene {
         btn.innerText = "SEND";
         Object.assign(btn.style, {
             position: 'absolute',
-            left: `${x + w - 70}px`,
-            top: `${y}px`,
-            width: '60px',
-            height: '42px',
+            left: `${startX + w - 70}px`,
+            top: `${bottomY}px`,
+            width: '70px',
+            height: '52px', // Match input + padding/border visually
             cursor: 'pointer',
             backgroundColor: '#00e676',
             border: 'none',
+            borderRadius: '4px',
             fontWeight: 'bold',
             zIndex: '10006', // Higher than input
             pointerEvents: 'auto', // Ensure clickable
@@ -243,15 +154,14 @@ export default class GlobalChatScene extends Phaser.Scene {
         });
 
         const handleClick = (e: Event) => {
-            e.preventDefault(); // Stop default browser action
-            e.stopPropagation(); // Stop bubbling
-            e.stopImmediatePropagation(); // Hard stop
+            e.preventDefault();
+            e.stopPropagation();
 
             if (this.inputElement) {
                 const val = this.inputElement.value;
                 if (!val) return;
 
-                this.inputElement.value = ''; // Optimistic clear
+                this.inputElement.value = '';
                 this.sendMessage(val);
                 this.inputElement.focus();
             }
@@ -264,6 +174,17 @@ export default class GlobalChatScene extends Phaser.Scene {
 
         document.body.appendChild(btn);
         this.domBtn = btn;
+    }
+
+    private cleanupDOM() {
+        if (this.inputElement && document.body.contains(this.inputElement)) {
+            document.body.removeChild(this.inputElement);
+            this.inputElement = undefined;
+        }
+        if (this.domBtn && document.body.contains(this.domBtn)) {
+            document.body.removeChild(this.domBtn);
+            this.domBtn = undefined;
+        }
     }
 
     private async sendMessage(content: string) {
