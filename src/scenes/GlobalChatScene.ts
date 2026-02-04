@@ -29,13 +29,18 @@ export default class GlobalChatScene extends Phaser.Scene {
         super('GlobalChatScene');
     }
 
+    private bgRect!: Phaser.GameObjects.Rectangle;
+    private bgGrid!: Phaser.GameObjects.Grid;
+    private headerText!: Phaser.GameObjects.Text;
+    private backBtn!: Phaser.GameObjects.Text;
+
     create() {
-        // Standard Scene Setup (No BringToTop, No Event Listeners for overlay)
+        // Standard Scene Setup
         this.createBackground();
         this.createHeader();
 
         // Chat Content Container
-        this.container = this.add.container(0, 0); // Full screen container
+        this.container = this.add.container(0, 0);
 
         // Message Display
         this.createMessageList();
@@ -47,32 +52,69 @@ export default class GlobalChatScene extends Phaser.Scene {
         // Input Setup (Pinned to bottom)
         this.createDOMInput();
 
-        this.scale.on('resize', () => {
-            // Simple restart is safest for full screen layout changes
-            this.scene.restart();
-        });
+        // RESIZE HANDLING
+        // Crucial: Do NOT restart scene on resize, because mobile keyboard triggers resize.
+        // Restarting kills the input focus and closes the keyboard.
+        this.scale.on('resize', this.handleResize, this);
+    }
+
+    private handleResize(gameSize: Phaser.Structs.Size) {
+        const width = gameSize.width;
+        const height = gameSize.height;
+        const isMobile = width < 768;
+
+        // 1. Update Background
+        if (this.bgRect) this.bgRect.setSize(width, height);
+        if (this.bgGrid) {
+            this.bgGrid.setPosition(width / 2, height / 2);
+            this.bgGrid.setSize(width, height);
+        }
+
+        // 2. Update Header
+        if (this.headerText) this.headerText.setPosition(width / 2, 50);
+
+        // 3. Update Message List width
+        if (this.messageListText) {
+            const w = isMobile ? width * 0.9 : 800;
+            this.messageListText.setPosition(width / 2 - w / 2, 120);
+            this.messageListText.setStyle({ wordWrap: { width: w } });
+        }
+
+        // 4. Update Input Position
+        // Use CSS bottom pinning
+        const inputW = isMobile ? width - 40 : Math.min(600, width * 0.6);
+        const startX = (width - inputW) / 2;
+
+        if (this.inputElement) {
+            this.inputElement.style.left = `${startX}px`;
+            this.inputElement.style.width = `${inputW - 80}px`;
+            // Bottom is handled by CSS now, no need to set Top
+        }
+        if (this.domBtn) {
+            this.domBtn.style.left = `${startX + inputW - 70}px`;
+        }
     }
 
     private createBackground() {
-        this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x111111).setOrigin(0);
-        this.add.grid(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 40, 40, 0x000000, 0, 0x222222, 0.5);
+        this.bgRect = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x111111).setOrigin(0);
+        this.bgGrid = this.add.grid(this.scale.width / 2, this.scale.height / 2, this.scale.width, this.scale.height, 40, 40, 0x000000, 0, 0x222222, 0.5);
     }
 
     private createHeader() {
         const isMobile = this.scale.width < 768;
         const padding = isMobile ? 20 : 50;
 
-        const backBtn = this.add.text(padding, 50, isMobile ? "←" : "← HOME", {
+        this.backBtn = this.add.text(padding, 50, isMobile ? "←" : "← HOME", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '28px' : '32px', color: '#fff'
         }).setInteractive({ useHandCursor: true });
 
-        backBtn.on('pointerdown', () => {
+        this.backBtn.on('pointerdown', () => {
             SoundManager.getInstance().playSFX('click');
             this.shutdown(); // Clean DOM
             this.scene.start('HomeScene');
         });
 
-        this.add.text(this.scale.width / 2, 50, "GLOBAL CHAT", {
+        this.headerText = this.add.text(this.scale.width / 2, 50, "GLOBAL CHAT", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '32px' : '42px', color: Theme.colors.success.toString()
         }).setOrigin(0.5, 0.5);
     }
@@ -101,9 +143,6 @@ export default class GlobalChatScene extends Phaser.Scene {
 
         const isMobile = this.scale.width < 768;
         const w = isMobile ? this.scale.width - 40 : Math.min(600, this.scale.width * 0.6); // Full width-ish
-
-        // Pinned to bottom
-        const bottomY = this.scale.height - 80; // Safe area from bottom
         const startX = (this.scale.width - w) / 2;
 
         this.inputElement = document.createElement('input');
@@ -112,7 +151,7 @@ export default class GlobalChatScene extends Phaser.Scene {
         Object.assign(this.inputElement.style, {
             position: 'absolute',
             left: `${startX}px`,
-            top: `${bottomY}px`,
+            bottom: '20px', // PINNED TO BOTTOM
             width: `${w - 80}px`, // Room for button
             height: '40px',
             backgroundColor: '#222',
@@ -140,7 +179,7 @@ export default class GlobalChatScene extends Phaser.Scene {
         Object.assign(btn.style, {
             position: 'absolute',
             left: `${startX + w - 70}px`,
-            top: `${bottomY}px`,
+            bottom: '20px', // PINNED TO BOTTOM
             width: '70px',
             height: '52px', // Match input + padding/border visually
             cursor: 'pointer',

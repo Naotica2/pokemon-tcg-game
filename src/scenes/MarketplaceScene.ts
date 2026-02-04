@@ -20,6 +20,7 @@ interface MarketListing {
 
 export default class MarketplaceScene extends Phaser.Scene {
     private isModalOpen = false; // Flag to disable background interaction
+    private lastModalClose = 0; // Cooldown to prevent ghost clicks
     private listings: MarketListing[] = [];
     private scrollY = 0;
     private container!: Phaser.GameObjects.Container;
@@ -79,12 +80,25 @@ export default class MarketplaceScene extends Phaser.Scene {
             }
         });
 
-        this.input.on('pointerup', () => {
+        this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
             isDown = false;
+
+            // Handle Tap (Click) on Card
+            // We check if we clicked a card AND we didn't scroll AND modal isn't opening/cooling down
+            if (!hasScrolled && !this.isModalOpen && (Date.now() - this.lastModalClose > 300)) {
+                // Find visible card under pointer
+                // Since cards are in a container, we might need a hit test or just rely on global input being blocked?
+                // Actually, earlier we removed pointerdown on cards.
+                // We need to re-implement "Tap Detection" here centrally or on the sprites.
+                // Let's rely on the sprites having 'pointerup' listeners if we want, OR centralize it.
+                // But the user's issue is likely the existing card listeners firing.
+                // So we just need to gate the EXISTING card listeners with this cooldown.
+            }
         });
 
         // Store scroll state in scene for buttons to check
         (this as any).isScrolling = () => hasScrolled;
+        (this as any).canClickCard = () => !hasScrolled && !this.isModalOpen && (Date.now() - this.lastModalClose > 300);
 
         // Removing aggressive restart on resize to prevent flickering when keyboard opens on mobile
         // this.scale.on('resize', () => this.scene.restart());
@@ -375,6 +389,7 @@ export default class MarketplaceScene extends Phaser.Scene {
             blocker.destroy();
             box.destroy();
             this.isModalOpen = false;
+            this.lastModalClose = Date.now(); // Set cooldown
         };
 
         // Logic
