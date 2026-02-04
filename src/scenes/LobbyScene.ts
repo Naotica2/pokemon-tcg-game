@@ -59,15 +59,23 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     private createFooter() {
-        // Create Room Button
-        const btn = this.add.container(this.scale.width / 2, this.scale.height - 80);
+        const isMobile = this.scale.width < 500;
 
-        const bg = this.add.rectangle(0, 0, 200, 60, 0x00e676)
+        // Ensure footer is always at bottom relative to screen height
+        const footerY = this.scale.height - (isMobile ? 60 : 80);
+
+        // Create Room Button
+        const btn = this.add.container(this.scale.width / 2, footerY);
+
+        const btnW = isMobile ? 180 : 250;
+        const btnH = isMobile ? 50 : 60;
+
+        const bg = this.add.rectangle(0, 0, btnW, btnH, 0x00e676)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.createRoom());
 
         const text = this.add.text(0, 0, "CREATE ROOM", {
-            fontSize: '20px', color: '#000', fontStyle: 'bold'
+            fontSize: isMobile ? '18px' : '24px', color: '#000', fontStyle: 'bold'
         }).setOrigin(0.5);
 
         btn.add([bg, text]);
@@ -97,21 +105,32 @@ export default class LobbyScene extends Phaser.Scene {
         }
 
         let y = 0;
+        const isMobile = this.scale.width < 500;
+        const rowW = Math.min(600, this.scale.width - 20);
+        const rowH = isMobile ? 50 : 60;
+
         lobbies.forEach((room: any) => {
             const row = this.add.container(this.scale.width / 2, y);
 
             // Row BG
-            const bg = this.add.rectangle(0, 0, Math.min(600, this.scale.width - 40), 60, 0x222222)
+            const bg = this.add.rectangle(0, 0, rowW, rowH, 0x222222)
                 .setStrokeStyle(1, 0x444444);
 
             // Host Name
-            const name = this.add.text(-150, 0, room.host_name || "Unknown", {
-                fontSize: '18px', color: '#fff'
+            const nameX = isMobile ? -rowW / 2 + 20 : -150;
+            const name = this.add.text(nameX, 0, room.host_name || "Unknown", {
+                fontSize: isMobile ? '16px' : '18px', color: '#fff'
             }).setOrigin(0, 0.5);
 
+            // Limit Name Length visually?
+            if (name.width > (rowW / 2)) {
+                name.setText(name.text.substring(0, 10) + '...');
+            }
+
             // Join Button
-            const joinBtn = this.add.container(150, 0);
-            const joinBg = this.add.rectangle(0, 0, 80, 40, 0x2196f3)
+            const btnX = isMobile ? rowW / 2 - 50 : 150;
+            const joinBtn = this.add.container(btnX, 0);
+            const joinBg = this.add.rectangle(0, 0, isMobile ? 60 : 80, isMobile ? 30 : 40, 0x2196f3)
                 .setInteractive({ useHandCursor: true })
                 .on('pointerdown', () => this.joinRoom(room.id));
             const joinTxt = this.add.text(0, 0, "JOIN", { fontSize: '14px', fontStyle: 'bold' }).setOrigin(0.5);
@@ -120,7 +139,7 @@ export default class LobbyScene extends Phaser.Scene {
             row.add([bg, name, joinBtn]);
 
             this.lobbyContainer.add(row);
-            y += 70;
+            y += (rowH + 10);
         });
     }
 

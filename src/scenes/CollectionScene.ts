@@ -612,22 +612,31 @@ export default class CollectionScene extends Phaser.Scene {
     private createDeckUI() {
         if (this.deckUIContainer) this.deckUIContainer.destroy();
 
-        this.deckUIContainer = this.add.container(0, this.scale.height - 100).setScrollFactor(0).setDepth(1000);
+        const isMobile = this.scale.width < 500;
+        this.deckUIContainer = this.add.container(0, this.scale.height - (isMobile ? 80 : 100)).setScrollFactor(0).setDepth(1000);
 
         // Background Bar
-        const bg = this.add.rectangle(this.scale.width / 2, 50, this.scale.width, 100, 0x000000, 0.9);
+        const bg = this.add.rectangle(this.scale.width / 2, isMobile ? 40 : 50, this.scale.width, isMobile ? 80 : 100, 0x000000, 0.9);
 
         // Count Text
-        this.deckCountText = this.add.text(50, 50, `DECK: ${this.currentDeck.length}`, {
-            fontSize: '24px', color: '#fff', fontStyle: 'bold'
+        const fontSize = isMobile ? '18px' : '24px';
+        this.deckCountText = this.add.text(isMobile ? 20 : 50, isMobile ? 40 : 50, `PARTY: ${this.currentDeck.length} / 6`, {
+            fontSize: fontSize, color: '#fff', fontStyle: 'bold'
         }).setOrigin(0, 0.5);
+        this.deckCountText.setColor(this.currentDeck.length === 6 ? '#00e676' : '#fff');
 
         // Save Button
-        const saveBtn = this.add.container(this.scale.width - 150, 50);
-        const saveBg = this.add.rectangle(0, 0, 200, 60, 0x00e676)
+        const btnW = isMobile ? 140 : 200;
+        const btnH = isMobile ? 50 : 60;
+        const btnX = this.scale.width - (isMobile ? 90 : 150);
+
+        const saveBtn = this.add.container(btnX, isMobile ? 40 : 50);
+        const saveBg = this.add.rectangle(0, 0, btnW, btnH, 0x00e676)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.saveDeck());
-        const saveTxt = this.add.text(0, 0, "SAVE DECK", { fontSize: '20px', color: '#000', fontStyle: 'bold' }).setOrigin(0.5);
+        const saveTxt = this.add.text(0, 0, "SAVE DECK", {
+            fontSize: isMobile ? '16px' : '20px', color: '#000', fontStyle: 'bold'
+        }).setOrigin(0.5);
         saveBtn.add([saveBg, saveTxt]);
 
         this.deckUIContainer.add([bg, this.deckCountText, saveBtn]);
