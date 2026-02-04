@@ -24,6 +24,7 @@ export default class GlobalChatScene extends Phaser.Scene {
     private domBtn?: HTMLButtonElement; // Fixed: Declared explicitly
 
     private lastFetch = 0;
+    private canExit = false; // Added property
 
     constructor() {
         super('GlobalChatScene');
@@ -106,11 +107,20 @@ export default class GlobalChatScene extends Phaser.Scene {
         const isMobile = this.scale.width < 768;
         const padding = isMobile ? 20 : 50;
 
-        this.backBtn = this.add.text(padding, 50, isMobile ? "←" : "← HOME", {
-            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '28px' : '32px', color: '#fff'
-        }).setInteractive({ useHandCursor: true });
+        // Enable exit after 1 second to prevent ghost clicks
+        this.time.delayedCall(1000, () => {
+            this.canExit = true;
+        });
+
+        this.backBtn = this.add.text(padding, 50, "← HOME", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '24px' : '32px', color: '#fff'
+        })
+            .setInteractive({ useHandCursor: true })
+            .setScrollFactor(0); // Fix to screen
 
         this.backBtn.on('pointerdown', () => {
+            if (!this.canExit) return; // ignore early clicks
+
             SoundManager.getInstance().playSFX('click');
             this.shutdown(); // Clean DOM
             this.scene.start('HomeScene');
@@ -118,7 +128,9 @@ export default class GlobalChatScene extends Phaser.Scene {
 
         this.headerText = this.add.text(this.scale.width / 2, 50, "GLOBAL CHAT", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '32px' : '42px', color: Theme.colors.success.toString()
-        }).setOrigin(0.5, 0.5);
+        })
+            .setOrigin(0.5, 0.5)
+            .setScrollFactor(0);
     }
 
     private createMessageList() {
@@ -204,14 +216,7 @@ export default class GlobalChatScene extends Phaser.Scene {
 
                 this.inputElement.value = '';
                 this.sendMessage(val);
-
-                // Mobile: Dismiss Keyboard (Blur) to avoid "Sticky Keyboard" glitches
-                // Desktop: Keep Focus for rapid typing
-                if (this.scale.width < 768) {
-                    this.inputElement.blur();
-                } else {
-                    this.inputElement.focus();
-                }
+                this.inputElement.focus(); // Revert to focus to ensure keyboard stays
             }
             return false;
         };

@@ -203,8 +203,8 @@ export default class MarketplaceScene extends Phaser.Scene {
         const isMobile = this.scale.width < 768;
         const padding = isMobile ? 20 : 50;
 
-        const backBtn = this.add.text(padding, 50, isMobile ? "←" : "← HOME", {
-            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '28px' : '32px', color: '#fff'
+        const backBtn = this.add.text(padding, 50, "← HOME", {
+            fontFamily: Theme.fonts.header.fontFamily, fontSize: isMobile ? '24px' : '32px', color: '#fff'
         }).setInteractive({ useHandCursor: true });
 
         backBtn.on('pointerdown', () => {
