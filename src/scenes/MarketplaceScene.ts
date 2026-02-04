@@ -84,7 +84,17 @@ export default class MarketplaceScene extends Phaser.Scene {
         // Store scroll state in scene for buttons to check
         (this as any).isScrolling = () => hasScrolled;
 
-        this.scale.on('resize', () => this.scene.restart());
+        // Removing aggressive restart on resize to prevent flickering when keyboard opens on mobile
+        // this.scale.on('resize', () => this.scene.restart());
+        this.scale.on('resize', this.handleResize, this);
+    }
+
+    private handleResize(gameSize: Phaser.Structs.Size) {
+        // Only update essential layout if needed
+        // For now, doing nothing is better than restarting and losing state/flickering
+        // Ideally, we re-run specific layout functions without full restart
+        this.createHeader(); // Simple re-render of dynamic elements if strictly necessary
+        // But for scrolling lists, it's safer to leave them be or re-calculate bounds silently
     }
 
     // Helper to unify scroll logic

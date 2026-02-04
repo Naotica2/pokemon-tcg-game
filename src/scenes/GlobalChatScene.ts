@@ -60,7 +60,9 @@ export default class GlobalChatScene extends Phaser.Scene {
 
     private handleResize() {
         // Update Icon Position
-        this.chatIcon.setPosition(this.scale.width - 60, this.scale.height - 140);
+        const isMobile = this.scale.width < 768;
+        const yOffset = isMobile ? 220 : 140; // Higher on mobile
+        this.chatIcon.setPosition(this.scale.width - 60, this.scale.height - yOffset);
 
         // Update Box Position/Size
         // We'll just toggle reset
@@ -72,8 +74,11 @@ export default class GlobalChatScene extends Phaser.Scene {
 
     private createChatIcon() {
         // Bottom Right floating button
+        const isMobile = this.scale.width < 768;
+        const yOffset = isMobile ? 220 : 140; // Higher on mobile
+
         const x = this.scale.width - 60;
-        const y = this.scale.height - 140; // Above "BACK" buttons usually
+        const y = this.scale.height - yOffset;
 
         this.chatIcon = this.add.container(x, y);
 
@@ -132,10 +137,11 @@ export default class GlobalChatScene extends Phaser.Scene {
     private renderWindowContent() {
         const isMobile = this.scale.width < 768;
         const w = isMobile ? this.scale.width * 0.9 : 400;
-        const h = isMobile ? this.scale.height * 0.6 : 500;
+        const h = isMobile ? this.scale.height * 0.5 : 500; // Reduced height on mobile
 
+        // Move higher on mobile to avoid keyboard covering it
         const x = isMobile ? this.scale.width / 2 : this.scale.width - (w / 2) - 20;
-        const y = isMobile ? this.scale.height / 2 : this.scale.height - (h / 2) - 100;
+        const y = isMobile ? (this.scale.height * 0.4) : this.scale.height - (h / 2) - 100; // 40% from top instead of centered
 
         // 1. Full Screen Blocker (Invisible/Dim) to stop clicks passing through
         // This ensures you don't accidentally click the game scene behind the chat
@@ -187,10 +193,10 @@ export default class GlobalChatScene extends Phaser.Scene {
 
         const isMobile = this.scale.width < 768;
         const w = isMobile ? this.scale.width * 0.9 : 400;
-        const h = isMobile ? this.scale.height * 0.6 : 500;
+        const h = isMobile ? this.scale.height * 0.5 : 500;
 
         const x = isMobile ? (this.scale.width - w) / 2 : this.scale.width - w - 20;
-        const y = isMobile ? (this.scale.height + h) / 2 - 50 : this.scale.height - 150; // Align with bottom of box
+        const y = isMobile ? (this.scale.height * 0.4) + (h / 2) - 40 : this.scale.height - 150; // Match renderWindowContent Y calculation
 
         this.inputElement = document.createElement('input');
         this.inputElement.type = 'text';
@@ -231,19 +237,25 @@ export default class GlobalChatScene extends Phaser.Scene {
             backgroundColor: '#00e676',
             border: 'none',
             fontWeight: 'bold',
-            zIndex: '10005', // High Z-Index
-            pointerEvents: 'auto' // Ensure clickable
+            zIndex: '10006', // Higher than input
+            pointerEvents: 'auto', // Ensure clickable
+            touchAction: 'manipulation' // Improve touch response
         });
 
         const handleClick = (e: Event) => {
-            e.stopPropagation();
+            e.preventDefault(); // Stop default browser action
+            e.stopPropagation(); // Stop bubbling
+            e.stopImmediatePropagation(); // Hard stop
+
             if (this.inputElement) {
                 const val = this.inputElement.value;
                 if (!val) return;
 
                 this.inputElement.value = ''; // Optimistic clear
                 this.sendMessage(val);
+                this.inputElement.focus();
             }
+            return false;
         };
 
         // Add multiple listeners for mobile reliability

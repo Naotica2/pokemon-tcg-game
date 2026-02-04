@@ -40,53 +40,13 @@
 
     <div id="app"></div>
 
-    <!-- Fullscreen Toggle Button -->
-    <button id="fullscreen-btn" aria-label="Toggle Fullscreen">
-        ⛶
-    </button>
-
-    <style>
-        #fullscreen-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
-            cursor: pointer;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #fullscreen-btn:hover {
-            background-color: rgba(0, 0, 0, 0.8);
-            border-color: #fff;
-            transform: scale(1.1);
-        }
-    </style>
-
-    <script>
-        const btn = document.getElementById('fullscreen-btn');
-        btn.addEventListener('click', () => {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
-                });
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
-            }
-        });
-    </script>
     <script type="module" src="/src/main.ts"></script>
+    <script>
+        // Prevent double-tap zoom on mobile
+        document.addEventListener('dblclick', function (event) {
+            event.preventDefault();
+        }, { passive: false });
+    </script>
 </body>
 
 </html>
