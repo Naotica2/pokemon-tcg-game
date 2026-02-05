@@ -10,6 +10,7 @@ export default class BattleScene extends Phaser.Scene {
     private userId: string | null = null;
     private isPlayerTurn = false;
     private waitingText?: Phaser.GameObjects.Text;
+    private lastSeenEvent: string = "";
 
     // UI Containers (Anchored)
     private enemyZone!: Phaser.GameObjects.Container;
@@ -48,10 +49,18 @@ export default class BattleScene extends Phaser.Scene {
             this.subscribeToMatch();
         }
 
+        // Polling Fallback (Every 2s)
+        this.time.addEvent({
+            delay: 2000,
+            callback: this.fetchMatchState,
+            callbackScope: this,
+            loop: true
+        });
+
         this.scale.on('resize', this.handleResize, this);
 
         // Drop Handler (Placeholder for now)
-        this.input.on('drop', (pointer: any, gameObject: BattleCard, dropZone: any) => {
+        this.input.on('drop', (pointer: Phaser.Input.Pointer, gameObject: BattleCard, dropZone: any) => {
             this.onCardDrop(pointer, gameObject, dropZone);
         });
     }
@@ -59,9 +68,11 @@ export default class BattleScene extends Phaser.Scene {
     private async fetchMatchState() {
         if (!this.matchId) return;
 
-        // Get User
-        const user = await getCurrentUser();
-        this.userId = user?.id || null;
+        // Get User if missing
+        if (!this.userId) {
+            const user = await getCurrentUser();
+            this.userId = user?.id || null;
+        }
 
         const { data, error } = await supabase
             .from('matches')
@@ -70,7 +81,7 @@ export default class BattleScene extends Phaser.Scene {
             .single();
 
         if (error || !data) {
-            console.error("Error fetching match:", error);
+            // console.error("Error fetching match:", error); // Silence polling errors
             return;
         }
 
@@ -157,22 +168,80 @@ export default class BattleScene extends Phaser.Scene {
         if (!state || !state.players) return; // Not started yet
 
         const myData = state.players[this.userId];
-        const opponentId = this.matchId // This might need cleaner logic if we just have state
-            ? (state.turn_owner === this.userId ? state.turn_owner : this.getOpponentId(state))
-            : null;
+        // Fix Opponent ID Logic
+        const opponentId = this.getOpponentId(state);
+        const opData = state.players[opponentId];
 
-        // Correct Opponent ID Logic using Match Data if available or deducing
-        // If we are P1, Opp is P2.
+        // COBBLEMON SYNC: Check Pending Actions
+        if (state.pending_actions && state.pending_actions[this.userId]) {
+            this.updateAttackBtn(true); // I am waiting
+        } else {
+            this.updateAttackBtn(false); // Reset/Ready
+        }
+
+        // Check Resolution Event
+        // Fix: Only shake if it's a NEW event
+        if (state.last_event === 'combat_resolved' && this.lastSeenEvent !== state.updated_at) {
+            this.cameras.main.shake(500, 0.02); // Stronger impact
+            // Play Sound?
+            // SoundManager.getInstance().playSFX('sfx_attack'); 
+            this.lastSeenEvent = state.updated_at; // Track by timestamp
+        } else if (state.last_event && this.lastSeenEvent !== state.updated_at) {
+            this.lastSeenEvent = state.updated_at;
+        }
 
         this.renderHand(myData.hand);
         this.renderBench(myData.bench);
-        // this.renderActive(myData.active); // TODO
-        // this.renderEnemy(opData); // TODO
+        // this.renderActive(myData.active); 
+        this.renderEnemy(opData);
     }
 
     private getOpponentId(state: any): string {
         const ids = Object.keys(state.players);
+        // Returns the ID that is NOT me
         return ids.find(id => id !== this.userId) || '';
+    }
+
+    private renderEnemy(opData: any) {
+        if (!opData) return;
+
+        // 1. Enemy Hand (Hidden, Just Backs)
+        this.enemyHand.removeAll(true);
+        const handCount = opData.hand ? opData.hand.length : 0;
+        const startX = -(handCount - 1) * 30; // Tighter overlap
+
+        for (let i = 0; i < handCount; i++) {
+            // Fake Card Back
+            const cardBack = this.add.image(startX + (i * 60), 0, 'tex_card_back_v5');
+            cardBack.setDisplaySize(100, 140);
+            cardBack.setScale(0.6); // Mini
+            this.enemyHand.add(cardBack);
+        }
+
+        // 2. Enemy Bench (Visible)
+        this.enemyBench.removeAll(true);
+        if (opData.bench) {
+            const isMobile = this.scale.width < 768;
+            const spacing = isMobile ? 80 : 110;
+
+            opData.bench.forEach((card: any, index: number) => {
+                const definition = {
+                    id: card.card_id,
+                    name: card.name,
+                    image_url: card.image_url,
+                    hp: card.hp,
+                    types: card.types
+                };
+                // Slot index mapping if needed, or just fill
+                const slotIndex = index - 2;
+
+                // Use BattleCard for visuals, but maybe disable input
+                const bCard = new BattleCard(this, slotIndex * spacing, 0, card.id, definition);
+                bCard.setScale(0.8);
+                bCard.disableInteractive(); // Can't touch enemy cards
+                this.enemyBench.add(bCard);
+            });
+        }
     }
 
     private renderBench(benchData: any[]) {
@@ -363,70 +432,65 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     private createUI() {
-        // Phase Indicator (Right Side)
-        const phaseBox = this.add.container(this.scale.width - 100, this.scale.height / 2);
-        const bg = this.add.rectangle(0, 0, 180, 50, 0x000000, 0.8);
-        const text = this.add.text(0, 0, "DRAW PHASE", {
-            fontSize: '18px', color: '#fff', fontStyle: 'bold'
+        // ATTACK BUTTON (Center Bottom)
+        // This is the main interaction button for Cobblemon style
+        const btnX = this.scale.width / 2;
+        const btnY = this.scale.height - 180; // Above hand
+
+        this.attackBtn = this.add.container(btnX, btnY);
+        const bg = this.add.rectangle(0, 0, 200, 60, 0xff0000)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.performAttack());
+
+        bg.setStrokeStyle(4, 0xffffff);
+
+        const text = this.add.text(0, 0, "ATTACK!", {
+            fontSize: '28px', color: '#fff', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        phaseBox.add([bg, text]);
-
-        // Back Button (Top Left)
-        const backBtn = this.add.text(40, 40, "SURRENDER", {
-            fontSize: '16px', color: '#ff5555'
-        })
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', async () => {
-                // Call Surrender Logic
-                // We don't await strictly because we want to leave immediately usually,
-                // but for cleanup it's better to wait or show "Leaving..."
-                const { error } = await supabase.rpc('surrender_match', { _match_id: this.matchId });
-                if (error) console.error("Surrender failed", error);
-
-                this.scene.start('HomeScene');
-            });
-
-        // END TURN BUTTON
-        const endTurnBtn = this.add.text(this.scale.width - 100, this.scale.height - 100, "END TURN", {
-            fontSize: '20px', backgroundColor: '#aa0000', padding: { x: 10, y: 10 }
-        })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', async () => {
-                try {
-                    const { error } = await supabase.rpc('submit_action', {
-                        _match_id: this.matchId,
-                        _action_type: 'end_turn',
-                        _payload: {}
-                    });
-                    if (error) throw error;
-                } catch (e: any) {
-                    console.error(e);
-                    alert(e.message);
-                }
-            });
-
-        // ATTACK BUTTON
-        const attackBtn = this.add.text(this.scale.width - 240, this.scale.height - 100, "ATTACK", {
-            fontSize: '20px', backgroundColor: '#e65100', padding: { x: 10, y: 10 }
-        })
-            .setOrigin(0.5)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', async () => {
-                try {
-                    const { error } = await supabase.rpc('submit_action', {
-                        _match_id: this.matchId,
-                        _action_type: 'attack',
-                        _payload: {}
-                    });
-                    if (error) throw error;
-                } catch (e: any) {
-                    console.error(e);
-                    alert(e.message);
-                }
-            });
+        this.attackBtn.add([bg, text]);
     }
+
+    private attackBtn!: Phaser.GameObjects.Container;
+
+    private async performAttack() {
+        // Disable locally immediately
+        this.updateAttackBtn(true);
+
+        const { error } = await supabase.rpc('submit_action', {
+            _match_id: this.matchId,
+            _action_type: 'attack',
+            _payload: {}
+        });
+
+        if (error) {
+            console.error(error);
+            this.updateAttackBtn(false); // Re-enable on error
+            alert("Attack Failed: " + error.message);
+        }
+    }
+
+    private updateAttackBtn(isWaiting: boolean) {
+        if (!this.attackBtn) return;
+        const bg = this.attackBtn.list[0] as Phaser.GameObjects.Rectangle;
+        const txt = this.attackBtn.list[1] as Phaser.GameObjects.Text;
+
+        if (isWaiting) {
+            bg.setFillStyle(0x555555);
+            txt.setText("WAITING...");
+            bg.disableInteractive();
+        } else {
+            bg.setFillStyle(0xff0000);
+            txt.setText("ATTACK!");
+            bg.setInteractive();
+        }
+    }
+
+    // In handleStateUpdate:
+    // Check pending_actions to sync button state
+    // if (state.pending_actions && state.pending_actions[this.userId]) { this.updateAttackBtn(true); } 
+    // else { this.updateAttackBtn(false); }
+
 
 
 
