@@ -219,8 +219,8 @@ export default class BattleScene extends Phaser.Scene {
         for (let i = 0; i < handCount; i++) {
             // Fake Card Back
             const cardBack = this.add.image(startX + (i * 60), 0, 'tex_card_back_v5');
-            cardBack.setDisplaySize(100, 140);
-            cardBack.setScale(0.6); // Mini
+            cardBack.setDisplaySize(100, 140); // Standard size
+            // Removed setScale(0.6) to avoid double-scaling conflict
             this.enemyHand.add(cardBack);
         }
 
@@ -236,7 +236,7 @@ export default class BattleScene extends Phaser.Scene {
 
                 // SHOW BACK ONLY (Mystery Roster)
                 const cardBack = this.add.image(slotIndex * spacing, 0, 'tex_card_back_v5');
-                cardBack.setDisplaySize(80, 110); // Fixed small size for bench (no setScale conflict)
+                cardBack.setDisplaySize(80, 110); // Fixed small size
 
                 this.enemyBench.add(cardBack);
             });
@@ -273,7 +273,9 @@ export default class BattleScene extends Phaser.Scene {
             hp: activeCard.hp,
             types: activeCard.types
         });
-        card.setScale(1.0); // Full size for active
+        // FIX: Force explicit size to avoid texture scaling issues
+        card.setDisplaySize(140, 190);
+        // card.setScale(1.0); // REMOVED
 
         // 3. HP Bar
         // Assuming max HP is static around 100-200 for now, or read from definition if available
