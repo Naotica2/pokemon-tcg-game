@@ -484,10 +484,10 @@ export default class BattleScene extends Phaser.Scene {
         // --- PLAYER ZONES ---
         this.playerZone = this.add.container(0, 0);
 
-        // Hand: Bottom Edge - Very close to bottom but visible
-        const handY = isPortrait ? h - (70 * this.scaleFactor) : h * 0.90;
+        // Hand: Bottom Edge - Move up and scale down slightly to prevent clipping
+        const handY = isPortrait ? h - (115 * this.scaleFactor) : h * 0.90;
         this.playerHand = this.add.container(cx, handY);
-        this.playerHand.setScale(this.scaleFactor);
+        this.playerHand.setScale(isPortrait ? this.scaleFactor * 0.9 : this.scaleFactor);
 
         // Bench: Lower Area - Condensed for larger cards
         const pBenchY = isPortrait ? h * 0.77 : h * 0.78;
