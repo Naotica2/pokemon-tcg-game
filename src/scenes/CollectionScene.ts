@@ -102,12 +102,10 @@ export default class CollectionScene extends Phaser.Scene {
     update() {
         // Force Deck UI Position every frame
         if (this.deckUIContainer && this.deckUIContainer.active) {
-            const isMobile = this.scale.width < 500;
-            // V6: Logic Fix -> Screen Space (ScrollFactor 0) means NO scroll variables in Y calculation
-            const targetY = this.scale.height - (isMobile ? 180 : 120);
+            // V7: Top Panel Pinning
+            const targetY = 110;
             this.deckUIContainer.setY(targetY);
-            // Keep locked to left side (0)
-            this.deckUIContainer.setX(0);
+            this.deckUIContainer.setX(0); // Lock to left
         }
     }
 
@@ -160,7 +158,7 @@ export default class CollectionScene extends Phaser.Scene {
         const fontSize = isMobile ? '28px' : '40px';
         const padding = isMobile ? 20 : 40;
 
-        const title = this.add.text(padding, 50, "COLLECTION (V6)", {
+        const title = this.add.text(padding, 50, "COLLECTION (V7)", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: fontSize, color: '#fff'
         }).setOrigin(0, 0.5);
 
@@ -644,47 +642,51 @@ export default class CollectionScene extends Phaser.Scene {
         if (this.deckUIContainer) this.deckUIContainer.destroy();
 
         const isMobile = this.scale.width < 500;
-        const height = this.scale.height;
-        // Raise UI higher to avoid being hidden (Safe Zone)
-        const uiY = height - (isMobile ? 220 : 120);
+        // RELOCATION: Top Panel (Below Header)
+        // Header ends at ~100. Let's put this at 110-150 range.
+        const uiY = 110;
+
         this.deckUIContainer = this.add.container(0, uiY).setScrollFactor(0).setDepth(1000);
 
         // Background Bar
-        const bg = this.add.rectangle(this.scale.width / 2, isMobile ? 40 : 50, this.scale.width, isMobile ? 80 : 100, 0x000000, 0.9);
+        // Full width bar
+        const bg = this.add.rectangle(this.scale.width / 2, 25, this.scale.width, 50, 0x000000, 0.9);
+        bg.setStrokeStyle(1, 0x333333);
 
-        // Count Text
-        const fontSize = isMobile ? '18px' : '24px';
-        this.deckCountText = this.add.text(isMobile ? 20 : 50, isMobile ? 40 : 50, `PARTY: ${this.currentDeck.length} / 6`, {
+        // Count Text (Left)
+        const fontSize = isMobile ? '16px' : '20px';
+        this.deckCountText = this.add.text(isMobile ? 20 : 50, 25, `PARTY: ${this.currentDeck.length} / 6`, {
             fontSize: fontSize, color: '#fff', fontStyle: 'bold'
         }).setOrigin(0, 0.5);
         this.deckCountText.setColor(this.currentDeck.length === 6 ? '#00e676' : '#fff');
 
-        // Save Button
-        const btnW = isMobile ? 140 : 200;
-        const btnH = isMobile ? 50 : 60;
-        const btnX = this.scale.width - (isMobile ? 90 : 150);
-
-        const saveBtn = this.add.container(btnX, isMobile ? 40 : 50);
-        const saveBg = this.add.rectangle(0, 0, btnW, btnH, 0x00e676)
-            .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => this.saveDeck());
-        const saveTxt = this.add.text(0, 0, "SAVE DECK", {
-            fontSize: isMobile ? '16px' : '20px', color: '#000', fontStyle: 'bold'
-        }).setOrigin(0.5);
-        saveBtn.add([saveBg, saveTxt]);
-
-        // RESET BUTTON (To clear stale IDs)
-        const resetBtn = this.add.text(this.scale.width / 2, isMobile ? 85 : 100, "RESET PARTY", {
-            fontSize: '12px', color: '#ff5555', backgroundColor: '#222', padding: { x: 5, y: 5 }
+        // Reset Button (Center)
+        const resetBtn = this.add.text(this.scale.width / 2, 25, "RESET", {
+            fontSize: '14px', color: '#ff5555', backgroundColor: '#222', padding: { x: 10, y: 5 }
         })
-            .setOrigin(0.5)
+            .setOrigin(0.5, 0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => {
                 this.currentDeck = [];
                 this.toggleDeckMode(); // Refresh visuals
             });
 
-        this.deckUIContainer.add([bg, this.deckCountText, saveBtn, resetBtn]);
+        // Save Button (Right)
+        const btnW = isMobile ? 100 : 140;
+        const btnH = isMobile ? 36 : 44;
+        const btnX = this.scale.width - (isMobile ? 70 : 100);
+
+        const saveBtn = this.add.container(btnX, 25);
+        const saveBg = this.add.rectangle(0, 0, btnW, btnH, 0x00e676)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.saveDeck());
+
+        const saveTxt = this.add.text(0, 0, "SAVE", {
+            fontSize: isMobile ? '14px' : '18px', color: '#000', fontStyle: 'bold'
+        }).setOrigin(0.5);
+        saveBtn.add([saveBg, saveTxt]);
+
+        this.deckUIContainer.add([bg, this.deckCountText, resetBtn, saveBtn]);
     }
 
     private toggleCardInDeck(card: CardData, container: Phaser.GameObjects.Container) {

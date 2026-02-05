@@ -42,13 +42,14 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     update() {
-        // NUCLEAR OPTION V6: Fix double-counting scroll
+        // TOP-RIGHT PINNING (V7)
         if (this.createRoomBtn) {
             const isMobile = this.scale.width < 500;
-            // Since ScrollFactor is 0, we use SCREEN coordinates, not WORLD coordinates.
-            const targetY = this.scale.height - (isMobile ? 180 : 120);
-            this.createRoomBtn.setY(targetY);
-            this.createRoomBtn.setX(this.scale.width / 2);
+            const btnX = this.scale.width - (isMobile ? 70 : 100);
+            const btnY = 60;
+
+            this.createRoomBtn.setX(btnX);
+            this.createRoomBtn.setY(btnY);
         }
     }
 
@@ -82,7 +83,7 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     private createHeader() {
-        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA (FIX V6)", {
+        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA (V7)", {
             fontSize: '36px',
             color: '#fff',
             fontStyle: 'bold',
@@ -103,35 +104,27 @@ export default class LobbyScene extends Phaser.Scene {
 
     private createFooter() {
         const isMobile = this.scale.width < 500;
-        // Raise button higher on mobile to avoid bottom nav/gesture areas
-        // Increased to 180 to be extra safe
-        // Raise button higher on mobile to avoid bottom nav/gesture areas
-        // FIXED: Use Safe hardcoded offset and setScrollFactor(0)
-        const footerY = this.scale.height - (isMobile ? 220 : 120);
+
+        // RELOCATION: Top Right Corner
+        // No longer a footer. It's a header action button.
+        const btnX = this.scale.width - (isMobile ? 70 : 100);
+        const btnY = 60; // Same as header centerY
 
         // Create Room Button
-        // FIXED: Assign to class property for update loop control
-        this.createRoomBtn = this.add.container(this.scale.width / 2, footerY);
+        this.createRoomBtn = this.add.container(btnX, btnY);
         this.createRoomBtn.setScrollFactor(0).setDepth(2000); // UI Layer
 
-        const btnW = isMobile ? 220 : 300;
-        const btnH = isMobile ? 60 : 70;
+        const btnW = isMobile ? 100 : 140;
+        const btnH = isMobile ? 40 : 50;
 
         const bg = this.add.rectangle(0, 0, btnW, btnH, 0x00e676)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.createRoom());
 
-        // Glow effect
-        this.tweens.add({
-            targets: bg,
-            alpha: 0.8,
-            duration: 1000,
-            yoyo: true,
-            repeat: -1
-        });
+        bg.setStrokeStyle(2, 0x000000);
 
-        const text = this.add.text(0, 0, "CREATE BATTLE", {
-            fontSize: isMobile ? '20px' : '26px', color: '#000', fontStyle: 'bold', fontFamily: Theme.fonts.header.fontFamily
+        const text = this.add.text(0, 0, "+ BATTLE", {
+            fontSize: isMobile ? '14px' : '18px', color: '#000', fontStyle: 'bold'
         }).setOrigin(0.5);
 
         this.createRoomBtn.add([bg, text]);
