@@ -37,6 +37,12 @@ export default class LobbyScene extends Phaser.Scene {
         this.events.on('shutdown', () => {
             if (this.channel) supabase.removeChannel(this.channel);
         });
+
+        this.scale.on('resize', this.handleResize, this);
+    }
+
+    private handleResize(gameSize: Phaser.Structs.Size) {
+        this.scene.restart(); // Simple restart to re-layout
     }
 
     private subscribeToLobbies() {
@@ -88,7 +94,9 @@ export default class LobbyScene extends Phaser.Scene {
         const isMobile = this.scale.width < 500;
         // Raise button higher on mobile to avoid bottom nav/gesture areas
         // Increased to 180 to be extra safe
-        const footerY = this.scale.height - (isMobile ? 180 : 100);
+        // Raise button higher on mobile to avoid bottom nav/gesture areas
+        const height = this.cameras.main.height;
+        const footerY = height - (isMobile ? (height * 0.15) : 100); // 15% from bottom on mobile
 
         // Create Room Button
         const btn = this.add.container(this.scale.width / 2, footerY);

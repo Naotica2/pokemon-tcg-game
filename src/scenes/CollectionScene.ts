@@ -629,8 +629,10 @@ export default class CollectionScene extends Phaser.Scene {
         if (this.deckUIContainer) this.deckUIContainer.destroy();
 
         const isMobile = this.scale.width < 500;
-        // Raise UI higher to avoid being hidden (increased from 140 to 180 for safety)
-        this.deckUIContainer = this.add.container(0, this.scale.height - (isMobile ? 180 : 100)).setScrollFactor(0).setDepth(1000);
+        const height = this.scale.height;
+        // Raise UI higher to avoid being hidden (20% from bottom on mobile)
+        const uiY = height - (isMobile ? (height * 0.20) : 100);
+        this.deckUIContainer = this.add.container(0, uiY).setScrollFactor(0).setDepth(1000);
 
         // Background Bar
         const bg = this.add.rectangle(this.scale.width / 2, isMobile ? 40 : 50, this.scale.width, isMobile ? 80 : 100, 0x000000, 0.9);
