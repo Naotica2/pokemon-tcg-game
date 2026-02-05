@@ -436,11 +436,7 @@ export default class BattleScene extends Phaser.Scene {
         grid.setAlpha(0.3);
     }
 
-    private setupZones() {
-        const w = this.scale.width;
-        const h = this.scale.height;
-        const cx = w / 2;
-        const cy = h / 2;
+
     private setupZones() {
         const w = this.scale.width;
         const h = this.scale.height;
