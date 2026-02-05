@@ -6,6 +6,7 @@ export default class LobbyScene extends Phaser.Scene {
     private lobbyContainer!: Phaser.GameObjects.Container;
     private refreshTimer!: Phaser.Time.TimerEvent;
     private channel: any;
+    private createRoomBtn!: Phaser.GameObjects.Container; // Store reference
 
     constructor() {
         super('LobbyScene');
@@ -41,6 +42,17 @@ export default class LobbyScene extends Phaser.Scene {
         this.scale.on('resize', this.handleResize, this);
     }
 
+    update() {
+        // NUCLEAR OPTION: Force position every frame
+        if (this.createRoomBtn) {
+            const isMobile = this.scale.width < 500;
+            const cam = this.cameras.main;
+            const targetY = cam.scrollY + cam.height - (isMobile ? 180 : 120);
+            this.createRoomBtn.setY(targetY);
+            this.createRoomBtn.setX(cam.scrollX + this.scale.width / 2);
+        }
+    }
+
     private handleResize(gameSize: Phaser.Structs.Size) {
         this.scene.restart(); // Simple restart to re-layout
     }
@@ -71,7 +83,7 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     private createHeader() {
-        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA", {
+        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA (FIX V5)", {
             fontSize: '36px',
             color: '#fff',
             fontStyle: 'bold',
@@ -99,8 +111,9 @@ export default class LobbyScene extends Phaser.Scene {
         const footerY = this.scale.height - (isMobile ? 220 : 120);
 
         // Create Room Button
-        const btn = this.add.container(this.scale.width / 2, footerY);
-        btn.setScrollFactor(0).setDepth(2000); // UI Layer
+        // FIXED: Assign to class property for update loop control
+        this.createRoomBtn = this.add.container(this.scale.width / 2, footerY);
+        this.createRoomBtn.setScrollFactor(0).setDepth(2000); // UI Layer
 
         const btnW = isMobile ? 220 : 300;
         const btnH = isMobile ? 60 : 70;
@@ -122,7 +135,7 @@ export default class LobbyScene extends Phaser.Scene {
             fontSize: isMobile ? '20px' : '26px', color: '#000', fontStyle: 'bold', fontFamily: Theme.fonts.header.fontFamily
         }).setOrigin(0.5);
 
-        btn.add([bg, text]);
+        this.createRoomBtn.add([bg, text]);
     }
 
     private async refreshLobbies() {

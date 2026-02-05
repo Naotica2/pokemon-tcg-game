@@ -99,6 +99,19 @@ export default class CollectionScene extends Phaser.Scene {
         this.createBackground(); // Redraw BG
     }
 
+    update() {
+        // Force Deck UI Position every frame
+        if (this.deckUIContainer && this.deckUIContainer.active) {
+            const isMobile = this.scale.width < 500;
+            const cam = this.cameras.main;
+            const targetY = cam.scrollY + cam.height - (isMobile ? 180 : 120);
+            this.deckUIContainer.setY(targetY);
+            // Ensure X is 0 relative to cam? Or world 0?
+            // Container was added at 0, so setX(cam.scrollX) keeps it pinned left
+            this.deckUIContainer.setX(cam.scrollX);
+        }
+    }
+
     private calculateGridMetrics() {
         const isMobile = this.scale.width < 500;
 
@@ -148,7 +161,7 @@ export default class CollectionScene extends Phaser.Scene {
         const fontSize = isMobile ? '28px' : '40px';
         const padding = isMobile ? 20 : 40;
 
-        const title = this.add.text(padding, 50, "MY COLLECTION", {
+        const title = this.add.text(padding, 50, "COLLECTION (V5)", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: fontSize, color: '#fff'
         }).setOrigin(0, 0.5);
 
