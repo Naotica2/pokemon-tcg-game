@@ -198,11 +198,15 @@ export default class BattleScene extends Phaser.Scene {
             const dmgP2 = evt.dmg_p2 || 0;
             const t1 = evt.debug_type_p1 || '?';
             const t2 = evt.debug_type_p2 || '?';
-            const m1 = evt.mult_p1 || 1;
+            // Now these are Modifiers (+5, -5, 0)
+            const mod1 = evt.mult_p1 || 0;
+
+            // Format Modifier Text
+            const modStr = mod1 > 0 ? `+${mod1}` : (mod1 < 0 ? `${mod1}` : '');
 
             // Debug Toast (Floating/Fading)
             const dText = this.add.text(this.scale.width / 2, this.scale.height / 2,
-                `Result: ${t1} vs ${t2} (x${m1})`,
+                `Result: ${t1} vs ${t2} ${modStr ? `(${modStr})` : ''}`,
                 { fontSize: '24px', backgroundColor: '#000', color: '#fff' }
             ).setOrigin(0.5).setDepth(3000)
                 .setAlpha(1).setScale(1);
@@ -412,6 +416,7 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     private async playCardAction(cardId: string) {
+        console.log("Playing card:", cardId);
         // Optimistic check?
         // Just send RPC. The SQL logic handles Active vs Bench priority.
         try {
@@ -421,9 +426,10 @@ export default class BattleScene extends Phaser.Scene {
                 _payload: { card_id: cardId }
             });
             if (error) throw error;
+            console.log("Card played successfully");
         } catch (e: any) {
             console.error("Play Card Error:", e);
-            // alert(e.message); // Optional: Silent fail or toast
+            alert("❌ Failed to Play Card: " + e.message + "\n(Check if it's your turn!)");
         }
     }
 
