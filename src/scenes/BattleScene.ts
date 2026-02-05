@@ -226,7 +226,12 @@ export default class BattleScene extends Phaser.Scene {
             // dmgP1 is always damage dealt TO Player 1
             // dmgP2 is always damage dealt TO Player 2
 
-            const isP1 = (this.userId === matchData.player1_id);
+            // TRIM IDs to be safe
+            const p1ID = (matchData.player1_id || "").trim();
+            const myID = (this.userId || "").trim();
+            const isP1 = (myID === p1ID);
+
+            console.log(`[BattleScene] Identity Check: Me=${myID}, P1=${p1ID}, IsP1=${isP1}`);
 
             // My Damage Received = If I am P1, dmgP1. If I am P2, dmgP2.
             const dmgToMe = isP1 ? dmgP1 : dmgP2;
