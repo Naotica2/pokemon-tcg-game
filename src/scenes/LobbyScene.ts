@@ -38,18 +38,17 @@ export default class LobbyScene extends Phaser.Scene {
         this.events.on('shutdown', () => {
             if (this.channel) supabase.removeChannel(this.channel);
         });
-
         this.scale.on('resize', this.handleResize, this);
     }
 
     update() {
-        // NUCLEAR OPTION: Force position every frame
+        // NUCLEAR OPTION V6: Fix double-counting scroll
         if (this.createRoomBtn) {
             const isMobile = this.scale.width < 500;
-            const cam = this.cameras.main;
-            const targetY = cam.scrollY + cam.height - (isMobile ? 180 : 120);
+            // Since ScrollFactor is 0, we use SCREEN coordinates, not WORLD coordinates.
+            const targetY = this.scale.height - (isMobile ? 180 : 120);
             this.createRoomBtn.setY(targetY);
-            this.createRoomBtn.setX(cam.scrollX + this.scale.width / 2);
+            this.createRoomBtn.setX(this.scale.width / 2);
         }
     }
 
@@ -83,7 +82,7 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     private createHeader() {
-        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA (FIX V5)", {
+        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA (FIX V6)", {
             fontSize: '36px',
             color: '#fff',
             fontStyle: 'bold',

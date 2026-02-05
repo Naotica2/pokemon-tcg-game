@@ -103,12 +103,11 @@ export default class CollectionScene extends Phaser.Scene {
         // Force Deck UI Position every frame
         if (this.deckUIContainer && this.deckUIContainer.active) {
             const isMobile = this.scale.width < 500;
-            const cam = this.cameras.main;
-            const targetY = cam.scrollY + cam.height - (isMobile ? 180 : 120);
+            // V6: Logic Fix -> Screen Space (ScrollFactor 0) means NO scroll variables in Y calculation
+            const targetY = this.scale.height - (isMobile ? 180 : 120);
             this.deckUIContainer.setY(targetY);
-            // Ensure X is 0 relative to cam? Or world 0?
-            // Container was added at 0, so setX(cam.scrollX) keeps it pinned left
-            this.deckUIContainer.setX(cam.scrollX);
+            // Keep locked to left side (0)
+            this.deckUIContainer.setX(0);
         }
     }
 
@@ -161,7 +160,7 @@ export default class CollectionScene extends Phaser.Scene {
         const fontSize = isMobile ? '28px' : '40px';
         const padding = isMobile ? 20 : 40;
 
-        const title = this.add.text(padding, 50, "COLLECTION (V5)", {
+        const title = this.add.text(padding, 50, "COLLECTION (V6)", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: fontSize, color: '#fff'
         }).setOrigin(0, 0.5);
 
