@@ -200,6 +200,8 @@ export default class BattleScene extends Phaser.Scene {
             const t2 = evt.debug_type_p2 || '?';
             const r1 = evt.debug_rarity_p1 || '?';
             const r2 = evt.debug_rarity_p2 || '?';
+            const b1 = evt.debug_base_p1 || '?';
+            const b2 = evt.debug_base_p2 || '?';
             // Now these are Modifiers (+5, -5, 0)
             const mod1 = evt.mult_p1 || 0;
 
@@ -209,7 +211,7 @@ export default class BattleScene extends Phaser.Scene {
             // Debug Toast (Floating/Fading)
             // SHOW RARITY for Debugging
             const dText = this.add.text(this.scale.width / 2, this.scale.height / 2,
-                `Rarity: [${r1} vs ${r2}]\n${t1} vs ${t2} ${modStr ? `(${modStr})` : ''}`,
+                `Rarity: ${r1}(${b1}) vs ${r2}(${b2})\n${t1} vs ${t2} ${modStr ? `(${modStr})` : ''}`,
                 { fontSize: '20px', backgroundColor: '#000', color: '#fff', align: 'center' }
             ).setOrigin(0.5).setDepth(3000)
                 .setAlpha(1).setScale(1);
