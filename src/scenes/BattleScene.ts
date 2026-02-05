@@ -325,23 +325,18 @@ export default class BattleScene extends Phaser.Scene {
 
     private renderActive(activeCard: any, isEnemy: boolean) {
         const container = isEnemy ? this.enemyActive : this.playerActive;
-        container.removeAll(true); // Clear previous
+        container.removeAll(true);
 
-        // 1. Zone Placeholder
-        // Show "Drop Here" if empty and My Turn (or just waiting for input)
-        const bg = this.add.rectangle(0, 0, 140, 190, 0x000000, 0.3).setStrokeStyle(2, isEnemy ? 0xff0000 : 0x00ff00);
+        // 1. Zone Background (Included in createPlaceholders, but we might need to recreate if we clear)
+        const bg = this.add.rectangle(0, 0, 150, 200, 0x000000, 0.4).setStrokeStyle(2, isEnemy ? 0xff0000 : 0x00ff00, 0.5);
+        container.add(bg);
 
         if (!activeCard) {
-            const txt = this.add.text(0, 0, isEnemy ? "No Active" : "Drop Card Here!", {
-                fontSize: '14px', color: '#666'
+            const txt = this.add.text(0, 0, isEnemy ? "NO ACTIVE" : "PLAY CARD", {
+                fontSize: '16px', color: '#555', fontStyle: 'bold'
             }).setOrigin(0.5);
-            container.add([bg, txt]);
-
-            // Re-enable drop zone
-            if (!isEnemy) {
-                bg.setInteractive({ dropZone: true });
-                bg.setData('zoneName', 'active'); // Changed to 'active'
-            }
+            container.add(txt);
+            if (!isEnemy) bg.setInteractive({ dropZone: true }).setData('zoneName', 'active');
             return;
         }
 
@@ -353,40 +348,53 @@ export default class BattleScene extends Phaser.Scene {
             hp: activeCard.hp,
             types: activeCard.types
         });
-        // FIX: Force explicit size to avoid texture scaling issues
-        card.setDisplaySize(140, 190);
-        // card.setScale(1.0); // REMOVED
+        card.setDisplaySize(150, 200);
 
-        // 3. HP Bar
-        // Assuming max HP is static around 100-200 for now, or read from definition if available
-        // activeCard.hp is current. We need Max HP. 
-        // For MVP, if Max not stored, assume 100 or use current if high? 
-        // Let's assume Max is 100 for visualization ratio if Max not in JSON.
-        // Actually card definition might have it. For now, just show text "HP: 80"
-
+        // 3. HP Bar (Relative to Card Size)
         const currentHp = parseInt(activeCard.hp);
-        const maxHp = 100; // Placeholder
+        const maxHp = 100;
         const hpPercent = Phaser.Math.Clamp(currentHp / maxHp, 0, 1);
 
-        const barW = 120;
-        const barH = 15;
-        const barY = 110;
+        const barW = 130;
+        const barH = 18;
+        const barY = 120; // Below card
 
-        const hpBg = this.add.rectangle(0, barY, barW, barH, 0x333333);
+        const hpBg = this.add.rectangle(0, barY, barW, barH, 0x000000, 0.8).setStrokeStyle(1, 0x444444);
         const hpFill = this.add.rectangle(-barW / 2, barY, barW * hpPercent, barH,
             hpPercent > 0.5 ? 0x00e676 : (hpPercent > 0.2 ? 0xffea00 : 0xff0000)
         ).setOrigin(0, 0.5);
 
-        const hpText = this.add.text(0, barY, `${currentHp} HP`, {
+        const hpText = this.add.text(0, barY, `${currentHp}/${maxHp} HP`, {
             fontSize: '12px', color: '#fff', fontStyle: 'bold'
         }).setOrigin(0.5);
 
-        container.add([bg, card, hpBg, hpFill, hpText]);
+        container.add([card, hpBg, hpFill, hpText]);
     }
 
     private renderBench(benchData: any[]) {
-        // ... (Keep existing bench logic, but ensure 'active' zone is handled separately)
-        // ...
+        this.playerBench.removeAll(true);
+        // Recreate slots
+        for (let i = -2; i <= 2; i++) {
+            const slot = this.add.rectangle(i * 120, 0, 110, 110, 0x000000, 0.2).setStrokeStyle(1, 0x333333);
+            slot.setInteractive({ dropZone: true }).setData('zoneName', 'bench');
+            this.playerBench.add(slot);
+        }
+
+        if (!benchData) return;
+
+        benchData.forEach((cardData: any, index: number) => {
+            if (index > 4) return; // Limit to 5
+            const slotIndex = index - 2;
+            const card = new BattleCard(this, slotIndex * 120, 0, cardData.id, {
+                id: cardData.card_id,
+                name: cardData.name,
+                image_url: cardData.image_url,
+                hp: cardData.hp,
+                types: cardData.types
+            });
+            card.setDisplaySize(110, 110); // Square-ish for bench
+            this.playerBench.add(card);
+        });
     }
 
     private showWaitingUI() {
@@ -398,60 +406,32 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     private renderHand(handData: any[]) {
-        // Clear previous hand (inefficient but safe for MVP)
-        // Ideally we diff the state
-        this.playerHand.each((c: any) => {
-            // BattleCards are in the scene actually (based on previous setupDebugBoard fix), 
-            // but let's check where we put them this time.
-            // If we use the Container approach properly:
-            if (c instanceof BattleCard) c.destroy();
-        });
-
-        // Actually, in setupDebugBoard we put them in SCENE. 
-        // We should probably track them in an array `this.handCards`.
-        // For now, let's just clear specific group if we had one.
-
-        // Simpler: Just rely on a specific container for the Hand?
-        // Let's use `this.playerHand` container which we created in `setupZones`.
         this.playerHand.removeAll(true);
+        if (!handData || handData.length === 0) return;
 
-        if (!handData) return;
-
-        // Render
-        const startX = -(handData.length - 1) * 45; // Center alignment offset (90/2)
+        // Dynamic Spacing: if many cards, overlap them more
+        const maxDisplayW = (this.scale.width * 0.8) / this.scaleFactor;
+        const cardW = 100;
+        const spacing = Math.min(cardW + 10, maxDisplayW / handData.length);
+        const startX = -(handData.length - 1) * spacing / 2;
 
         handData.forEach((card: any, index: number) => {
-            // Card Definition from JSON
-            const definition = {
+            const battleCard = new BattleCard(this, startX + (index * spacing), 0, card.id, {
                 id: card.card_id,
                 name: card.name,
                 image_url: card.image_url,
                 hp: card.hp,
                 types: card.types
-            };
-
-            // Unique Instance ID
-            const uid = card.id;
-
-            // Create Card
-            // We add to Container `this.playerHand` so they move with it
-            const battleCard = new BattleCard(this, 0, 0, uid, definition);
+            });
+            battleCard.setDisplaySize(100, 140);
             this.playerHand.add(battleCard);
 
-            battleCard.setPosition(startX + (index * 90), 0);
-
-            // CLICK TO PLAY (Alternative to Drag)
             battleCard.setInteractive({ useHandCursor: true });
-            battleCard.on('pointerdown', () => {
-                this.playCardAction(uid);
-            });
+            battleCard.on('pointerdown', () => this.playCardAction(card.id));
         });
     }
 
     private async playCardAction(cardId: string) {
-        console.log("Playing card:", cardId);
-        // Optimistic check?
-        // Just send RPC. The SQL logic handles Active vs Bench priority.
         try {
             const { error } = await supabase.rpc('submit_action', {
                 _match_id: this.matchId,
@@ -459,10 +439,8 @@ export default class BattleScene extends Phaser.Scene {
                 _payload: { card_id: cardId }
             });
             if (error) throw error;
-            console.log("Card played successfully");
         } catch (e: any) {
-            console.error("Play Card Error:", e);
-            alert("❌ Failed to Play Card: " + e.message + "\n(Check if it's your turn!)");
+            alert("Msg from Prof. Oak: " + e.message);
         }
     }
 
@@ -476,132 +454,110 @@ export default class BattleScene extends Phaser.Scene {
     }
 
 
+    private scaleFactor: number = 1.0;
+
     private setupZones() {
         const w = this.scale.width;
         const h = this.scale.height;
         const cx = w / 2;
-        const isMobile = w < 768; // Simple breakpoint
-        const isLandscapeMobile = isMobile && w > h;
 
-        // --- RESPONSIVE CONSTANTS ---
-        // Scale down zones if very small screen
-        const scaleFactor = isMobile ? (isLandscapeMobile ? 0.6 : 0.75) : 1.0;
+        // --- RESPONSIVE CALCS ---
+        // Base design is 1280x720. 
+        // We use the smaller scale factor to ensure everything fits.
+        const scaleX = w / 1280;
+        const scaleY = h / 720;
+        this.scaleFactor = Math.min(scaleX, scaleY);
+        if (w < 768) this.scaleFactor *= 0.85; // Extra shrinkage for mobile
 
-        // 1. Player Zone (Bottom Half)
+        // --- PLAYER ZONES ---
         this.playerZone = this.add.container(0, 0);
 
-        // Active Spot
-        // Mobile: Higher up to leave room for hand
-        // Desktop: Standard
-        const pActiveY = h * (isMobile ? 0.55 : 0.65);
-        this.playerActive = this.add.container(cx, pActiveY);
-        this.playerActive.setScale(scaleFactor); // Scale entire container
+        // Hand: Move up from bottom (Percent based)
+        // Desktop: bottom 12%, Mobile: bottom 15%
+        const handY = h * 0.88;
+        this.playerHand = this.add.container(cx, handY);
+        this.playerHand.setScale(this.scaleFactor);
 
-        const pActiveBg = this.add.rectangle(0, 0, 140, 190, 0x000000, 0.5).setStrokeStyle(2, 0x00ff00);
-        const pActiveLbl = this.add.text(0, 0, "ACTIVE", { fontSize: '18px', color: '#444' }).setOrigin(0.5);
-        this.playerActive.add([pActiveBg, pActiveLbl]);
-
-        // Bench (Below Active)
-        const pBenchY = h * (isMobile ? 0.75 : 0.82);
+        // Bench: Middle-Lower
+        const pBenchY = h * 0.72;
         this.playerBench = this.add.container(cx, pBenchY);
-        this.playerBench.setScale(scaleFactor);
+        this.playerBench.setScale(this.scaleFactor);
 
-        // 5 Bench Slots
-        // Dynamic spacing: fit 5 slots in width
-        const benchSlotW = 100;
-        const benchTotalW = 5 * benchSlotW + 4 * 10; // slots + gaps
-        const maxBenchW = w * 0.9;
-        // If bench is too wide, scale it down further or overlap
-        // For now, simpler: standard spacing, container scale handles it
-        for (let i = -2; i <= 2; i++) {
-            const slot = this.add.rectangle(i * 110, 0, 100, 100, 0x000000, 0.3).setStrokeStyle(1, 0x444444);
-            this.playerBench.add(slot);
-        }
+        // Active: Center-Lower
+        const pActiveY = h * 0.55;
+        this.playerActive = this.add.container(cx, pActiveY);
+        this.playerActive.setScale(this.scaleFactor);
 
-        // Hand (Bottom Edge)
-        // We will layout cards dynamically in renderHand
-        this.playerHand = this.add.container(cx, h - (isMobile ? 60 : 80));
-
-        // Deck & Discard (Bottom Right Corner)
-        // Safe Zone: padding from edges
-        const deckX = w - (isMobile ? 50 : 100);
-        const deckY = h - (isMobile ? 80 : 120);
-        this.playerDeck = this.add.container(deckX, deckY);
-        this.playerDeck.setScale(scaleFactor); // Match zone scale
-        this.playerDeck.add(this.add.rectangle(0, 0, 80, 110, 0x333333).setStrokeStyle(1, 0x666666));
-        this.playerDeck.add(this.add.text(0, 0, "DECK", { fontSize: '12px' }).setOrigin(0.5));
-
-
-        // 2. Enemy Zone (Top Half, Mirrored)
+        // --- ENEMY ZONES ---
         this.enemyZone = this.add.container(0, 0);
 
-        // Enemy Active
-        const eActiveY = h * (isMobile ? 0.30 : 0.35); // Higher up
-        this.enemyActive = this.add.container(cx, eActiveY);
-        this.enemyActive.setScale(scaleFactor);
+        // Enemy Hand: Move down from top (avoid bezel/notch)
+        const eHandY = h * 0.08;
+        this.enemyHand = this.add.container(cx, eHandY);
+        this.enemyHand.setScale(this.scaleFactor);
 
-        const eActiveBg = this.add.rectangle(0, 0, 140, 190, 0x000000, 0.5).setStrokeStyle(2, 0xff0000);
-        const eActiveLbl = this.add.text(0, 0, "ENEMY", { fontSize: '18px', color: '#444' }).setOrigin(0.5);
-        this.enemyActive.add([eActiveBg, eActiveLbl]);
-
-        // Enemy Bench (Above Active)
-        const eBenchY = h * (isMobile ? 0.12 : 0.15); // Very top
+        // Enemy Bench: Middle-Upper
+        const eBenchY = h * 0.22;
         this.enemyBench = this.add.container(cx, eBenchY);
-        this.enemyBench.setScale(scaleFactor);
+        this.enemyBench.setScale(this.scaleFactor);
 
-        for (let i = -2; i <= 2; i++) {
-            const slot = this.add.rectangle(i * 110, 0, 100, 100, 0x000000, 0.3).setStrokeStyle(1, 0x444444);
-            this.enemyBench.add(slot);
-        }
+        // Enemy Active: Center-Upper
+        const eActiveY = h * 0.40;
+        this.enemyActive = this.add.container(cx, eActiveY);
+        this.enemyActive.setScale(this.scaleFactor);
 
-        // Enemy Hand (Top Edge - Visible Backs)
-        // Fixed: Moved down so they are visible (not cut off)
-        this.enemyHand = this.add.container(cx, isMobile ? 60 : 80);
+        // --- RE-RENDER PLACEHOLDERS ---
+        this.createPlaceholders();
+
+        // Deck (Bottom Right)
+        const deckX = w * 0.92;
+        const deckY = h * 0.88;
+        this.playerDeck = this.add.container(deckX, deckY);
+        this.playerDeck.setScale(this.scaleFactor * 0.8);
+        this.playerDeck.add(this.add.rectangle(0, 0, 100, 140, 0x333333, 0.5).setStrokeStyle(1, 0x666666));
+        this.playerDeck.add(this.add.text(0, 0, "DECK", { fontSize: '14px' }).setOrigin(0.5));
 
         this.add.existing(this.playerZone);
         this.add.existing(this.enemyZone);
+    }
 
-        // ENABLE ZONES for Drop
-        pActiveBg.setInteractive({ dropZone: true });
-        pActiveBg.setData('zoneName', 'active');
+    private createPlaceholders() {
+        // Player Bench Slots
+        for (let i = -2; i <= 2; i++) {
+            const slot = this.add.rectangle(i * 120, 0, 110, 110, 0x000000, 0.2).setStrokeStyle(1, 0x333333);
+            slot.setInteractive({ dropZone: true }).setData('zoneName', 'bench');
+            this.playerBench.add(slot);
+        }
 
-        this.playerBench.each((child: any) => {
-            if (child.setInteractive) {
-                child.setInteractive({ dropZone: true });
-                child.setData('zoneName', 'bench');
-            }
-        });
+        // Active Slots
+        const pActBg = this.add.rectangle(0, 0, 150, 200, 0x000000, 0.4).setStrokeStyle(2, 0x00ff00, 0.5);
+        pActBg.setInteractive({ dropZone: true }).setData('zoneName', 'active');
+        this.playerActive.add(pActBg);
+
+        const eActBg = this.add.rectangle(0, 0, 150, 200, 0x000000, 0.4).setStrokeStyle(2, 0xff0000, 0.5);
+        this.enemyActive.add(eActBg);
     }
 
     private createUI() {
         const w = this.scale.width;
         const h = this.scale.height;
-        const isMobile = w < 768;
 
-        // ATTACK BUTTON
-        // Position: Right side, vertically centered between Active zones? 
-        // Or Bottom Right near Deck?
-        // Let's put it Right-Middle-Low to be accessible by thumb
-
-        const btnW = isMobile ? 100 : 140;
-        const btnH = isMobile ? 50 : 60;
-
-        // Position
-        const btnX = w - (isMobile ? 60 : 100);
-        const btnY = h * (isMobile ? 0.6 : 0.5); // Slightly lower on mobile to be thumb accessible
-
+        // ATTACK BUTTON (Dynamic Position)
+        const btnX = w * 0.88;
+        const btnY = h * 0.50;
         this.attackBtn = this.add.container(btnX, btnY);
+        this.attackBtn.setScale(this.scaleFactor);
+
+        const btnW = 160;
+        const btnH = 60;
 
         const bg = this.add.rectangle(0, 0, btnW, btnH, 0xff0000)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.performAttack());
-
-        bg.setStrokeStyle(isMobile ? 2 : 3, 0xffffff);
+        bg.setStrokeStyle(3, 0xffffff);
 
         const text = this.add.text(0, 0, "ATTACK", {
-            fontSize: isMobile ? '16px' : '24px',
-            color: '#fff',
-            fontStyle: 'bold'
+            fontSize: '24px', color: '#fff', fontStyle: 'bold'
         }).setOrigin(0.5);
 
         this.attackBtn.add([bg, text]);
