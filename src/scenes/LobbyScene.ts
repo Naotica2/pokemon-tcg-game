@@ -86,7 +86,8 @@ export default class LobbyScene extends Phaser.Scene {
 
     private createFooter() {
         const isMobile = this.scale.width < 500;
-        const footerY = this.scale.height - (isMobile ? 80 : 100);
+        // Raise button higher on mobile to avoid bottom nav/gesture areas
+        const footerY = this.scale.height - (isMobile ? 120 : 100);
 
         // Create Room Button
         const btn = this.add.container(this.scale.width / 2, footerY);

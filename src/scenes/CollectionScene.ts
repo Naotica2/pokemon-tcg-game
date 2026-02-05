@@ -308,6 +308,21 @@ export default class CollectionScene extends Phaser.Scene {
         }).setOrigin(0.5);
         container.add(nameText);
 
+
+        // 6. In Party Indicator
+        if (this.currentDeck.includes(card.card_id)) {
+            const partyBadge = this.add.rectangle(0, 0, this.CARD_WIDTH, 30, 0x00e676, 0.9);
+            const partyText = this.add.text(0, 0, "IN PARTY", {
+                fontSize: '14px', color: '#000', fontStyle: 'bold'
+            }).setOrigin(0.5);
+
+            // Position at top or bottom? Let's put it slightly above center or overlapping image
+            partyBadge.setPosition(0, 40);
+            partyText.setPosition(0, 40);
+
+            container.add([partyBadge, partyText]);
+        }
+
         // Interactivity (Smart Click)
         bg.setInteractive({ useHandCursor: true })
             .on('pointerover', () => {
@@ -613,7 +628,8 @@ export default class CollectionScene extends Phaser.Scene {
         if (this.deckUIContainer) this.deckUIContainer.destroy();
 
         const isMobile = this.scale.width < 500;
-        this.deckUIContainer = this.add.container(0, this.scale.height - (isMobile ? 80 : 100)).setScrollFactor(0).setDepth(1000);
+        // Raise UI higher to avoid being hidden
+        this.deckUIContainer = this.add.container(0, this.scale.height - (isMobile ? 140 : 100)).setScrollFactor(0).setDepth(1000);
 
         // Background Bar
         const bg = this.add.rectangle(this.scale.width / 2, isMobile ? 40 : 50, this.scale.width, isMobile ? 80 : 100, 0x000000, 0.9);
