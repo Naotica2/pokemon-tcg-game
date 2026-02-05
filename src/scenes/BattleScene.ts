@@ -181,11 +181,29 @@ export default class BattleScene extends Phaser.Scene {
 
         // Check Resolution Event
         // Fix: Only shake if it's a NEW event
-        if (state.last_event === 'combat_resolved' && this.lastSeenEvent !== state.updated_at) {
+        if (state.last_event && state.last_event.type === 'combat_resolved' && this.lastSeenEvent !== state.updated_at) {
             this.cameras.main.shake(500, 0.02); // Stronger impact
-            // Play Sound?
-            // SoundManager.getInstance().playSFX('sfx_attack'); 
-            this.lastSeenEvent = state.updated_at; // Track by timestamp
+
+            // SHOW FLOATING DAMAGE & DEBUG
+            const evt = state.last_event;
+            const dmgP1 = evt.dmg_p1 || 0;
+            const dmgP2 = evt.dmg_p2 || 0;
+            const t1 = evt.debug_type_p1 || '?';
+            const t2 = evt.debug_type_p2 || '?';
+            const m1 = evt.mult_p1 || 1;
+
+            // Debug Toast
+            this.add.text(this.scale.width / 2, this.scale.height / 2,
+                `Result: ${t1} vs ${t2} (x${m1})`,
+                { fontSize: '24px', backgroundColor: '#000', color: '#fff' }
+            ).setOrigin(0.5).setDepth(3000)
+                .setAlpha(1).setScale(1);
+
+            // Floating Damage
+            if (dmgP1 > 0) this.showFloatingText(this.playerActive.x, this.playerActive.y, `-${dmgP1}`, 0xff0000);
+            if (dmgP2 > 0) this.showFloatingText(this.enemyActive.x, this.enemyActive.y, `-${dmgP2}`, 0xff0000);
+
+            this.lastSeenEvent = state.updated_at;
         } else if (state.last_event && this.lastSeenEvent !== state.updated_at) {
             this.lastSeenEvent = state.updated_at;
         }
@@ -200,6 +218,17 @@ export default class BattleScene extends Phaser.Scene {
         // We keep bench if they have extra cards placed there
         this.renderBench(myData.bench);
         this.renderEnemy(opData);
+    }
+
+    private showFloatingText(x: number, y: number, msg: string, color: number) {
+        const txt = this.add.text(x, y, msg, {
+            fontSize: '40px', fontStyle: 'bold', stroke: '#000', strokeThickness: 4, color: '#ff0000'
+        }).setOrigin(0.5).setDepth(2000);
+
+        this.tweens.add({
+            targets: txt, y: y - 100, alpha: 0, duration: 1500, ease: 'Power2',
+            onComplete: () => txt.destroy()
+        });
     }
 
     private getOpponentId(state: any): string {
