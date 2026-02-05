@@ -409,8 +409,10 @@ export default class BattleScene extends Phaser.Scene {
         this.playerHand.removeAll(true);
         if (!handData || handData.length === 0) return;
 
+        const isPortrait = this.scale.height > this.scale.width;
         // Dynamic Spacing: if many cards, overlap them more
-        const maxDisplayW = (this.scale.width * 0.8) / this.scaleFactor;
+        // In portrait, we have less width, so be more aggressive with overlapping
+        const maxDisplayW = (this.scale.width * (isPortrait ? 0.95 : 0.8)) / this.scaleFactor;
         const cardW = 100;
         const spacing = Math.min(cardW + 10, maxDisplayW / handData.length);
         const startX = -(handData.length - 1) * spacing / 2;
@@ -460,48 +462,57 @@ export default class BattleScene extends Phaser.Scene {
         const w = this.scale.width;
         const h = this.scale.height;
         const cx = w / 2;
+        const isPortrait = h > w;
 
         // --- RESPONSIVE CALCS ---
-        // Base design is 1280x720. 
-        // We use the smaller scale factor to ensure everything fits.
+        // Base design is 1280x720.
         const scaleX = w / 1280;
         const scaleY = h / 720;
-        this.scaleFactor = Math.min(scaleX, scaleY);
-        if (w < 768) this.scaleFactor *= 0.85; // Extra shrinkage for mobile
+
+        // Use a more adaptive scale factor
+        if (isPortrait) {
+            // In portrait, width is the bottleneck
+            this.scaleFactor = (w / 375) * 0.85; // Base on typical mobile width
+        } else {
+            this.scaleFactor = Math.min(scaleX, scaleY);
+        }
+
+        // Clamp scale factor to reasonable limits
+        this.scaleFactor = Phaser.Math.Clamp(this.scaleFactor, 0.4, 1.2);
 
         // --- PLAYER ZONES ---
         this.playerZone = this.add.container(0, 0);
 
-        // Hand: Bottom Edge
-        const handY = h * 0.90;
+        // Hand: Bottom Edge - Adjust based on orientation to avoid browser UI
+        const handY = isPortrait ? h - (80 * this.scaleFactor) : h * 0.90;
         this.playerHand = this.add.container(cx, handY);
         this.playerHand.setScale(this.scaleFactor);
 
         // Bench: Lower Area
-        const pBenchY = h * 0.78;
+        const pBenchY = isPortrait ? h * 0.75 : h * 0.78;
         this.playerBench = this.add.container(cx, pBenchY);
-        this.playerBench.setScale(this.scaleFactor);
+        this.playerBench.setScale(this.scaleFactor * 0.9); // Slightly smaller bench
 
         // Active: Lower-Center
-        const pActiveY = h * 0.62;
+        const pActiveY = isPortrait ? h * 0.58 : h * 0.62;
         this.playerActive = this.add.container(cx, pActiveY);
         this.playerActive.setScale(this.scaleFactor);
 
         // --- ENEMY ZONES ---
         this.enemyZone = this.add.container(0, 0);
 
-        // Enemy Hand: Top Edge
-        const eHandY = h * 0.08;
+        // Enemy Hand: Top Edge - Move down slightly in portrait
+        const eHandY = isPortrait ? (70 * this.scaleFactor) : h * 0.08;
         this.enemyHand = this.add.container(cx, eHandY);
         this.enemyHand.setScale(this.scaleFactor);
 
         // Enemy Bench: Upper Area
-        const eBenchY = h * 0.18;
+        const eBenchY = isPortrait ? h * 0.22 : h * 0.18;
         this.enemyBench = this.add.container(cx, eBenchY);
-        this.enemyBench.setScale(this.scaleFactor);
+        this.enemyBench.setScale(this.scaleFactor * 0.9);
 
         // Enemy Active: Upper-Center
-        const eActiveY = h * 0.35;
+        const eActiveY = isPortrait ? h * 0.40 : h * 0.35;
         this.enemyActive = this.add.container(cx, eActiveY);
         this.enemyActive.setScale(this.scaleFactor);
 
@@ -509,10 +520,10 @@ export default class BattleScene extends Phaser.Scene {
         this.createPlaceholders();
 
         // Deck (Bottom Right)
-        const deckX = w * 0.92;
-        const deckY = h * 0.88;
+        const deckX = isPortrait ? w * 0.85 : w * 0.92;
+        const deckY = isPortrait ? h * 0.70 : h * 0.88; // Move up in portrait so it's not behind fingers
         this.playerDeck = this.add.container(deckX, deckY);
-        this.playerDeck.setScale(this.scaleFactor * 0.8);
+        this.playerDeck.setScale(this.scaleFactor * 0.7);
         this.playerDeck.add(this.add.rectangle(0, 0, 100, 140, 0x333333, 0.5).setStrokeStyle(1, 0x666666));
         this.playerDeck.add(this.add.text(0, 0, "DECK", { fontSize: '14px' }).setOrigin(0.5));
 
