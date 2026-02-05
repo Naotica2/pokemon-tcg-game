@@ -53,6 +53,7 @@ export default class CollectionScene extends Phaser.Scene {
         this.container.add(this.gridContainer);
 
         // Fetch Real Data
+        await this.fetchUserDeck(); // Fetch deck first so badges appear
         await this.fetchUserCollection();
 
         // Calculate Scroll Limits
@@ -628,8 +629,8 @@ export default class CollectionScene extends Phaser.Scene {
         if (this.deckUIContainer) this.deckUIContainer.destroy();
 
         const isMobile = this.scale.width < 500;
-        // Raise UI higher to avoid being hidden
-        this.deckUIContainer = this.add.container(0, this.scale.height - (isMobile ? 140 : 100)).setScrollFactor(0).setDepth(1000);
+        // Raise UI higher to avoid being hidden (increased from 140 to 180 for safety)
+        this.deckUIContainer = this.add.container(0, this.scale.height - (isMobile ? 180 : 100)).setScrollFactor(0).setDepth(1000);
 
         // Background Bar
         const bg = this.add.rectangle(this.scale.width / 2, isMobile ? 40 : 50, this.scale.width, isMobile ? 80 : 100, 0x000000, 0.9);
@@ -687,6 +688,18 @@ export default class CollectionScene extends Phaser.Scene {
         if (this.deckCountText) {
             this.deckCountText.setText(`PARTY: ${this.currentDeck.length} / 6`);
             this.deckCountText.setColor(this.currentDeck.length === 6 ? '#00e676' : '#fff');
+        }
+    }
+
+    private async fetchUserDeck() {
+        const user = await getCurrentUser();
+        if (!user) return;
+
+        const { data, error } = await supabase.rpc('get_active_deck', { _user_id: user.id });
+
+        if (data) {
+            // data is the jsonb array of card ids
+            this.currentDeck = data;
         }
     }
 
