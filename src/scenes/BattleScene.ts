@@ -38,6 +38,10 @@ export default class BattleScene extends Phaser.Scene {
         console.log("BattleScene Init: Match ID", this.matchId);
     }
 
+    preload() {
+        this.load.audio('sfx_attack', 'sfx/attack colorless & PING.mp3');
+    }
+
     create() {
         this.createBackground();
         this.setupZones();
@@ -137,6 +141,7 @@ export default class BattleScene extends Phaser.Scene {
 
     // CORE RENDERER
     private lastState: any = null;
+
 
 
     private handleStateUpdate(matchData: any) {
