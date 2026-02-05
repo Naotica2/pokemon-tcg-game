@@ -15,7 +15,6 @@ export default class BattleScene extends Phaser.Scene {
     // Persistent Identity
     private player1Id: string | null = null;
     private player2Id: string | null = null;
-    private debugIdText?: Phaser.GameObjects.Text;
 
     // UI Containers (Anchored)
     private enemyZone!: Phaser.GameObjects.Container;
@@ -216,34 +215,13 @@ export default class BattleScene extends Phaser.Scene {
             // Format Modifier Text
             const modStr = mod1 > 0 ? `+${mod1}` : (mod1 < 0 ? `${mod1}` : '');
 
-            // Debug Toast (Floating/Fading)
-            // SHOW RARITY for Debugging
-            const dText = this.add.text(this.scale.width / 2, this.scale.height / 2,
-                `[${n1}:${r1}(${b1})] vs [${n2}:${r2}(${b2})]\n${t1} vs ${t2} ${modStr ? `(${modStr})` : ''}`,
-                { fontSize: '16px', backgroundColor: '#000', color: '#fff', align: 'center' }
-            ).setOrigin(0.5).setDepth(3000)
-                .setAlpha(1).setScale(1);
-
-            this.tweens.add({
-                targets: dText, y: dText.y - 50, alpha: 0,
-                duration: 3000, delay: 1000,
-                onComplete: () => dText.destroy()
-            });
-
-            // Floating Damage (MAPPED BY IDENTITY)
-            // Identity Logic with Visual Debug
+            // Identity Logic
             if (matchData.player1_id) this.player1Id = matchData.player1_id;
             // Also try to recover P1 ID from state.players keys if possible (First inserted key? Unreliable but hinting)
 
             const p1ID = (this.player1Id || matchData.player1_id || "").trim();
             const myID = (this.userId || "").trim();
             const isP1 = (myID === p1ID);
-
-            // VISUAL DEBUG FOR IDS (Top Left)
-            if (!this.debugIdText) {
-                this.debugIdText = this.add.text(10, 10, "", { fontSize: '10px', color: '#00ff00', backgroundColor: '#000' }).setDepth(9999);
-            }
-            this.debugIdText.setText(`Me: ${myID.substring(0, 8)}...\nP1: ${p1ID.substring(0, 8)}...\nIsP1: ${isP1}\nDmgP1: ${dmgP1}, DmgP2: ${dmgP2}`);
 
             console.log(`[BattleScene] Identity Check: Me=${myID}, P1=${p1ID}, IsP1=${isP1}`);
 
