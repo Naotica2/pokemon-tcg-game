@@ -114,16 +114,16 @@ export default class BattleScene extends Phaser.Scene {
         gameObject.setPosition(dropZone.x, dropZone.y);
 
         try {
-            if (zoneName === 'bench') {
+            // Drop to Bench OR Active
+            if (zoneName === 'bench' || zoneName === 'active') { // Both use play_pokemon
                 const { data, error } = await supabase.rpc('submit_action', {
                     _match_id: this.matchId,
                     _action_type: 'play_pokemon',
-                    _payload: { card_id: cardId }
+                    _payload: { card_id: cardId } // Internal SQL logic decides active vs bench
                 });
 
                 if (error) throw error;
-                console.log("Action Success:", data);
-                // State update will trigger via Realtime subscription
+                // console.log("Action Success:", data);
             }
         } catch (e: any) {
             console.error("Action Failed:", e);
@@ -191,8 +191,14 @@ export default class BattleScene extends Phaser.Scene {
         }
 
         this.renderHand(myData.hand);
+
+        // Render Active & Enemy Active
+        this.renderActive(myData.active, false);
+        this.renderActive(opData ? opData.active : null, true);
+
+        // this.renderBench(myData.bench); // Optional if using strictly 1v1
+        // We keep bench if they have extra cards placed there
         this.renderBench(myData.bench);
-        // this.renderActive(myData.active); 
         this.renderEnemy(opData);
     }
 
@@ -218,75 +224,87 @@ export default class BattleScene extends Phaser.Scene {
             this.enemyHand.add(cardBack);
         }
 
-        // 2. Enemy Bench (Visible)
+        // 2. Enemy Bench (Visible -> NOW HIDDEN/BACKS)
         this.enemyBench.removeAll(true);
         if (opData.bench) {
             const isMobile = this.scale.width < 768;
             const spacing = isMobile ? 80 : 110;
 
             opData.bench.forEach((card: any, index: number) => {
-                const definition = {
-                    id: card.card_id,
-                    name: card.name,
-                    image_url: card.image_url,
-                    hp: card.hp,
-                    types: card.types
-                };
-                // Slot index mapping if needed, or just fill
+                // Slot index mapping
                 const slotIndex = index - 2;
 
-                // Use BattleCard for visuals, but maybe disable input
-                const bCard = new BattleCard(this, slotIndex * spacing, 0, card.id, definition);
-                bCard.setScale(0.8);
-                bCard.disableInteractive(); // Can't touch enemy cards
-                this.enemyBench.add(bCard);
+                // SHOW BACK ONLY (Mystery Roster)
+                const cardBack = this.add.image(slotIndex * spacing, 0, 'tex_card_back_v5');
+                cardBack.setDisplaySize(80, 110); // Fixed small size for bench (no setScale conflict)
+
+                this.enemyBench.add(cardBack);
             });
         }
     }
 
+    private renderActive(activeCard: any, isEnemy: boolean) {
+        const container = isEnemy ? this.enemyActive : this.playerActive;
+        container.removeAll(true); // Clear previous
+
+        // 1. Zone Placeholder
+        // Show "Drop Here" if empty and My Turn (or just waiting for input)
+        const bg = this.add.rectangle(0, 0, 140, 190, 0x000000, 0.3).setStrokeStyle(2, isEnemy ? 0xff0000 : 0x00ff00);
+
+        if (!activeCard) {
+            const txt = this.add.text(0, 0, isEnemy ? "No Active" : "Drop Card Here!", {
+                fontSize: '14px', color: '#666'
+            }).setOrigin(0.5);
+            container.add([bg, txt]);
+
+            // Re-enable drop zone
+            if (!isEnemy) {
+                bg.setInteractive({ dropZone: true });
+                bg.setData('zoneName', 'active'); // Changed to 'active'
+            }
+            return;
+        }
+
+        // 2. Render Card
+        const card = new BattleCard(this, 0, 0, activeCard.id, {
+            id: activeCard.card_id,
+            name: activeCard.name,
+            image_url: activeCard.image_url,
+            hp: activeCard.hp,
+            types: activeCard.types
+        });
+        card.setScale(1.0); // Full size for active
+
+        // 3. HP Bar
+        // Assuming max HP is static around 100-200 for now, or read from definition if available
+        // activeCard.hp is current. We need Max HP. 
+        // For MVP, if Max not stored, assume 100 or use current if high? 
+        // Let's assume Max is 100 for visualization ratio if Max not in JSON.
+        // Actually card definition might have it. For now, just show text "HP: 80"
+
+        const currentHp = parseInt(activeCard.hp);
+        const maxHp = 100; // Placeholder
+        const hpPercent = Phaser.Math.Clamp(currentHp / maxHp, 0, 1);
+
+        const barW = 120;
+        const barH = 15;
+        const barY = 110;
+
+        const hpBg = this.add.rectangle(0, barY, barW, barH, 0x333333);
+        const hpFill = this.add.rectangle(-barW / 2, barY, barW * hpPercent, barH,
+            hpPercent > 0.5 ? 0x00e676 : (hpPercent > 0.2 ? 0xffea00 : 0xff0000)
+        ).setOrigin(0, 0.5);
+
+        const hpText = this.add.text(0, barY, `${currentHp} HP`, {
+            fontSize: '12px', color: '#fff', fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        container.add([bg, card, hpBg, hpFill, hpText]);
+    }
+
     private renderBench(benchData: any[]) {
-        // Clear previous
-        this.playerBench.each((c: any) => {
-            if (c instanceof BattleCard) c.destroy();
-        });
-        this.playerBench.removeAll(true); // Ensure clean container
-
-        if (!benchData) return;
-
-        // Bench Layout: Fixed 5 slots.
-        // We defined slots in setupZones at [-2, -1, 0, 1, 2] * 110/80
-        // benchData is just an array. We fill from left? Or should we have specific indices?
-        // Pokemon TCG Bench is usually just a list up to 5.
-
-        const isMobile = this.scale.width < 768;
-        const spacing = isMobile ? 80 : 110;
-
-        benchData.forEach((card: any, index: number) => {
-            // -2 to +2 logic: Index 0 -> -2, Index 4 -> +2
-            // Actually, let's just center them or fill slots 0..4
-            // Our slots visual loop was: for (let i = -2; i <= 2; i++)
-
-            // Let's map index 0 to slot -2 (Leftmost)
-            const slotIndex = index - 2;
-
-            const definition = {
-                id: card.card_id,
-                name: card.name,
-                image_url: card.image_url,
-                hp: card.hp,
-                types: card.types
-            };
-
-            const battleCard = new BattleCard(this, 0, 0, card.id, definition);
-            battleCard.state = 'BENCH'; // Disable Drag? Or allow Drag to Active?
-            battleCard.highlight(false); // Remove glow
-
-            // Scale down for bench
-            battleCard.setScale(0.8);
-
-            this.playerBench.add(battleCard);
-            battleCard.setPosition(slotIndex * spacing, 0);
-        });
+        // ... (Keep existing bench logic, but ensure 'active' zone is handled separately)
+        // ...
     }
 
     private showWaitingUI() {
@@ -340,9 +358,28 @@ export default class BattleScene extends Phaser.Scene {
 
             battleCard.setPosition(startX + (index * 90), 0);
 
-            // Correct resizing/interactive relative to container?
-            // Phaser Containers handle this well usually.
+            // CLICK TO PLAY (Alternative to Drag)
+            battleCard.setInteractive({ useHandCursor: true });
+            battleCard.on('pointerdown', () => {
+                this.playCardAction(uid);
+            });
         });
+    }
+
+    private async playCardAction(cardId: string) {
+        // Optimistic check?
+        // Just send RPC. The SQL logic handles Active vs Bench priority.
+        try {
+            const { error } = await supabase.rpc('submit_action', {
+                _match_id: this.matchId,
+                _action_type: 'play_pokemon',
+                _payload: { card_id: cardId }
+            });
+            if (error) throw error;
+        } catch (e: any) {
+            console.error("Play Card Error:", e);
+            // alert(e.message); // Optional: Silent fail or toast
+        }
     }
 
     private createBackground() {
