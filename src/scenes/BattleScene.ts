@@ -185,11 +185,14 @@ export default class BattleScene extends Phaser.Scene {
         }
 
         // Check Resolution Event
-        // Fix: Only shake if it's a NEW event
-        if (state.last_event && state.last_event.type === 'combat_resolved' && this.lastSeenEvent !== state.updated_at) {
-            this.cameras.main.shake(500, 0.02); // Stronger impact
+        // Fix: Use matchData.updated_at (Server Timestamp) to track changes reliably
+        if (state.last_event && state.last_event.type === 'combat_resolved' && this.lastSeenEvent !== matchData.updated_at) {
+            this.cameras.main.shake(500, 0.02);
 
-            // SHOW FLOATING DAMAGE & DEBUG
+            // 1. SFX
+            this.sound.play('sfx_attack');
+
+            // 2. SHOW FLOATING DAMAGE & DEBUG
             const evt = state.last_event;
             const dmgP1 = evt.dmg_p1 || 0;
             const dmgP2 = evt.dmg_p2 || 0;
@@ -197,20 +200,26 @@ export default class BattleScene extends Phaser.Scene {
             const t2 = evt.debug_type_p2 || '?';
             const m1 = evt.mult_p1 || 1;
 
-            // Debug Toast
-            this.add.text(this.scale.width / 2, this.scale.height / 2,
+            // Debug Toast (Floating/Fading)
+            const dText = this.add.text(this.scale.width / 2, this.scale.height / 2,
                 `Result: ${t1} vs ${t2} (x${m1})`,
                 { fontSize: '24px', backgroundColor: '#000', color: '#fff' }
             ).setOrigin(0.5).setDepth(3000)
                 .setAlpha(1).setScale(1);
 
+            this.tweens.add({
+                targets: dText, y: dText.y - 50, alpha: 0,
+                duration: 3000, delay: 1000,
+                onComplete: () => dText.destroy()
+            });
+
             // Floating Damage
             if (dmgP1 > 0) this.showFloatingText(this.playerActive.x, this.playerActive.y, `-${dmgP1}`, 0xff0000);
             if (dmgP2 > 0) this.showFloatingText(this.enemyActive.x, this.enemyActive.y, `-${dmgP2}`, 0xff0000);
 
-            this.lastSeenEvent = state.updated_at;
-        } else if (state.last_event && this.lastSeenEvent !== state.updated_at) {
-            this.lastSeenEvent = state.updated_at;
+            this.lastSeenEvent = matchData.updated_at;
+        } else if (state.last_event && this.lastSeenEvent !== matchData.updated_at) {
+            this.lastSeenEvent = matchData.updated_at;
         }
 
         this.renderHand(myData.hand);
@@ -432,94 +441,131 @@ export default class BattleScene extends Phaser.Scene {
         const h = this.scale.height;
         const cx = w / 2;
         const cy = h / 2;
-        const isMobile = w < 768;
+    private setupZones() {
+        const w = this.scale.width;
+        const h = this.scale.height;
+        const cx = w / 2;
+        const isMobile = w < 768; // Simple breakpoint
+        const isLandscapeMobile = isMobile && w > h;
 
-        // --- ZONES ---
-        // We use relative positioning (0.0 to 1.0) for responsiveness
+        // --- RESPONSIVE CONSTANTS ---
+        // Scale down zones if very small screen
+        const scaleFactor = isMobile ? (isLandscapeMobile ? 0.6 : 0.75) : 1.0;
 
         // 1. Player Zone (Bottom Half)
         this.playerZone = this.add.container(0, 0);
 
-        // Active Spot (Center-ish Bottom)
-        const pActiveY = isMobile ? h * 0.6 : h * 0.65;
+        // Active Spot
+        // Mobile: Higher up to leave room for hand
+        // Desktop: Standard
+        const pActiveY = h * (isMobile ? 0.55 : 0.65);
         this.playerActive = this.add.container(cx, pActiveY);
+        this.playerActive.setScale(scaleFactor); // Scale entire container
+
         const pActiveBg = this.add.rectangle(0, 0, 140, 190, 0x000000, 0.5).setStrokeStyle(2, 0x00ff00);
-        const pActiveLbl = this.add.text(0, 0, "ACTIVE", { fontSize: '12px', color: '#444' }).setOrigin(0.5);
+        const pActiveLbl = this.add.text(0, 0, "ACTIVE", { fontSize: '18px', color: '#444' }).setOrigin(0.5);
         this.playerActive.add([pActiveBg, pActiveLbl]);
 
         // Bench (Below Active)
-        const pBenchY = isMobile ? h * 0.8 : h * 0.82;
+        const pBenchY = h * (isMobile ? 0.75 : 0.82);
         this.playerBench = this.add.container(cx, pBenchY);
+        this.playerBench.setScale(scaleFactor);
+
         // 5 Bench Slots
+        // Dynamic spacing: fit 5 slots in width
+        const benchSlotW = 100;
+        const benchTotalW = 5 * benchSlotW + 4 * 10; // slots + gaps
+        const maxBenchW = w * 0.9;
+        // If bench is too wide, scale it down further or overlap
+        // For now, simpler: standard spacing, container scale handles it
         for (let i = -2; i <= 2; i++) {
-            const slot = this.add.rectangle(i * (isMobile ? 80 : 110), 0, isMobile ? 70 : 100, isMobile ? 70 : 100, 0x000000, 0.3).setStrokeStyle(1, 0x444444);
+            const slot = this.add.rectangle(i * 110, 0, 100, 100, 0x000000, 0.3).setStrokeStyle(1, 0x444444);
             this.playerBench.add(slot);
         }
 
         // Hand (Bottom Edge)
-        this.playerHand = this.add.container(cx, h - 50);
+        // We will layout cards dynamically in renderHand
+        this.playerHand = this.add.container(cx, h - (isMobile ? 60 : 80));
 
-        // Deck & Discard (Bottom Right)
-        const deckX = w - (isMobile ? 60 : 100);
-        const deckY = h - (isMobile ? 100 : 150);
+        // Deck & Discard (Bottom Right Corner)
+        // Safe Zone: padding from edges
+        const deckX = w - (isMobile ? 50 : 100);
+        const deckY = h - (isMobile ? 80 : 120);
         this.playerDeck = this.add.container(deckX, deckY);
+        this.playerDeck.setScale(scaleFactor); // Match zone scale
         this.playerDeck.add(this.add.rectangle(0, 0, 80, 110, 0x333333).setStrokeStyle(1, 0x666666));
-        this.playerDeck.add(this.add.text(0, 0, "DECK", { fontSize: '10px' }).setOrigin(0.5));
+        this.playerDeck.add(this.add.text(0, 0, "DECK", { fontSize: '12px' }).setOrigin(0.5));
 
 
         // 2. Enemy Zone (Top Half, Mirrored)
         this.enemyZone = this.add.container(0, 0);
 
         // Enemy Active
-        const eActiveY = isMobile ? h * 0.4 : h * 0.35;
+        const eActiveY = h * (isMobile ? 0.30 : 0.35); // Higher up
         this.enemyActive = this.add.container(cx, eActiveY);
+        this.enemyActive.setScale(scaleFactor);
+
         const eActiveBg = this.add.rectangle(0, 0, 140, 190, 0x000000, 0.5).setStrokeStyle(2, 0xff0000);
-        const eActiveLbl = this.add.text(0, 0, "ENEMY", { fontSize: '12px', color: '#444' }).setOrigin(0.5);
+        const eActiveLbl = this.add.text(0, 0, "ENEMY", { fontSize: '18px', color: '#444' }).setOrigin(0.5);
         this.enemyActive.add([eActiveBg, eActiveLbl]);
 
         // Enemy Bench (Above Active)
-        const eBenchY = isMobile ? h * 0.2 : h * 0.18;
+        const eBenchY = h * (isMobile ? 0.12 : 0.15); // Very top
         this.enemyBench = this.add.container(cx, eBenchY);
+        this.enemyBench.setScale(scaleFactor);
+
         for (let i = -2; i <= 2; i++) {
-            const slot = this.add.rectangle(i * (isMobile ? 80 : 110), 0, isMobile ? 70 : 100, isMobile ? 70 : 100, 0x000000, 0.3).setStrokeStyle(1, 0x444444);
+            const slot = this.add.rectangle(i * 110, 0, 100, 100, 0x000000, 0.3).setStrokeStyle(1, 0x444444);
             this.enemyBench.add(slot);
         }
 
         // Enemy Hand (Top Edge - Hidden/Backs)
-        this.enemyHand = this.add.container(cx, 50);
+        this.enemyHand = this.add.container(cx, -50); // Hiding mostly offscreen or just top edge
 
         this.add.existing(this.playerZone);
         this.add.existing(this.enemyZone);
 
         // ENABLE ZONES for Drop
-
-        // Active
         pActiveBg.setInteractive({ dropZone: true });
         pActiveBg.setData('zoneName', 'active');
 
-        // Bench
         this.playerBench.each((child: any) => {
-            child.setInteractive({ dropZone: true });
-            child.setData('zoneName', 'bench');
+            if (child.setInteractive) {
+                child.setInteractive({ dropZone: true });
+                child.setData('zoneName', 'bench');
+            }
         });
     }
 
     private createUI() {
-        // ATTACK BUTTON (Right Side now, not blocking Center)
-        const isMobile = this.scale.width < 768;
-        const btnX = this.scale.width - (isMobile ? 70 : 120);
-        const btnY = this.scale.height / 2; // Middle Right
+        const w = this.scale.width;
+        const h = this.scale.height;
+        const isMobile = w < 768;
+
+        // ATTACK BUTTON
+        // Position: Right side, vertically centered between Active zones? 
+        // Or Bottom Right near Deck?
+        // Let's put it Right-Middle-Low to be accessible by thumb
+
+        const btnW = isMobile ? 100 : 140;
+        const btnH = isMobile ? 50 : 60;
+
+        // Position
+        const btnX = w - (isMobile ? 60 : 100);
+        const btnY = h * (isMobile ? 0.6 : 0.5); // Slightly lower on mobile to be thumb accessible
 
         this.attackBtn = this.add.container(btnX, btnY);
-        // Smaller button if on side
-        const bg = this.add.rectangle(0, 0, isMobile ? 120 : 140, 60, 0xff0000)
+
+        const bg = this.add.rectangle(0, 0, btnW, btnH, 0xff0000)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.performAttack());
 
-        bg.setStrokeStyle(3, 0xffffff);
+        bg.setStrokeStyle(isMobile ? 2 : 3, 0xffffff);
 
-        const text = this.add.text(0, 0, "ATTACK!", {
-            fontSize: '28px', color: '#fff', fontStyle: 'bold'
+        const text = this.add.text(0, 0, "ATTACK", {
+            fontSize: isMobile ? '16px' : '24px',
+            color: '#fff',
+            fontStyle: 'bold'
         }).setOrigin(0.5);
 
         this.attackBtn.add([bg, text]);
