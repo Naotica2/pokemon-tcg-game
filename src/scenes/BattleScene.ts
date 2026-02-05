@@ -12,6 +12,10 @@ export default class BattleScene extends Phaser.Scene {
     private waitingText?: Phaser.GameObjects.Text;
     private lastSeenEvent: string = "";
 
+    // Persistent Identity
+    private player1Id: string | null = null;
+    private player2Id: string | null = null;
+
     // UI Containers (Anchored)
     private enemyZone!: Phaser.GameObjects.Container;
     private playerZone!: Phaser.GameObjects.Container;
@@ -230,7 +234,11 @@ export default class BattleScene extends Phaser.Scene {
             // dmgP2 is always damage dealt TO Player 2
 
             // TRIM IDs to be safe
-            const p1ID = (matchData.player1_id || "").trim();
+            if (matchData.player1_id) this.player1Id = matchData.player1_id;
+            if (matchData.player2_id) this.player2Id = matchData.player2_id;
+
+            // Use cached ID or fallback to current payload
+            const p1ID = (this.player1Id || matchData.player1_id || "").trim();
             const myID = (this.userId || "").trim();
             const isP1 = (myID === p1ID);
 
