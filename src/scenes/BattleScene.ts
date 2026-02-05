@@ -15,6 +15,7 @@ export default class BattleScene extends Phaser.Scene {
     // Persistent Identity
     private player1Id: string | null = null;
     private player2Id: string | null = null;
+    private debugIdText?: Phaser.GameObjects.Text;
 
     // UI Containers (Anchored)
     private enemyZone!: Phaser.GameObjects.Container;
@@ -230,17 +231,19 @@ export default class BattleScene extends Phaser.Scene {
             });
 
             // Floating Damage (MAPPED BY IDENTITY)
-            // dmgP1 is always damage dealt TO Player 1
-            // dmgP2 is always damage dealt TO Player 2
-
-            // TRIM IDs to be safe
+            // Identity Logic with Visual Debug
             if (matchData.player1_id) this.player1Id = matchData.player1_id;
-            if (matchData.player2_id) this.player2Id = matchData.player2_id;
+            // Also try to recover P1 ID from state.players keys if possible (First inserted key? Unreliable but hinting)
 
-            // Use cached ID or fallback to current payload
             const p1ID = (this.player1Id || matchData.player1_id || "").trim();
             const myID = (this.userId || "").trim();
             const isP1 = (myID === p1ID);
+
+            // VISUAL DEBUG FOR IDS (Top Left)
+            if (!this.debugIdText) {
+                this.debugIdText = this.add.text(10, 10, "", { fontSize: '10px', color: '#00ff00', backgroundColor: '#000' }).setDepth(9999);
+            }
+            this.debugIdText.setText(`Me: ${myID.substring(0, 8)}...\nP1: ${p1ID.substring(0, 8)}...\nIsP1: ${isP1}\nDmgP1: ${dmgP1}, DmgP2: ${dmgP2}`);
 
             console.log(`[BattleScene] Identity Check: Me=${myID}, P1=${p1ID}, IsP1=${isP1}`);
 
