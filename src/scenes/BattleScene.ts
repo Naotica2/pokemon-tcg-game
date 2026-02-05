@@ -471,17 +471,18 @@ export default class BattleScene extends Phaser.Scene {
     }
 
     private createUI() {
-        // ATTACK BUTTON (Center Bottom)
-        // This is the main interaction button for Cobblemon style
-        const btnX = this.scale.width / 2;
-        const btnY = this.scale.height - 180; // Above hand
+        // ATTACK BUTTON (Right Side now, not blocking Center)
+        const isMobile = this.scale.width < 768;
+        const btnX = this.scale.width - (isMobile ? 70 : 120);
+        const btnY = this.scale.height / 2; // Middle Right
 
         this.attackBtn = this.add.container(btnX, btnY);
-        const bg = this.add.rectangle(0, 0, 200, 60, 0xff0000)
+        // Smaller button if on side
+        const bg = this.add.rectangle(0, 0, isMobile ? 120 : 140, 60, 0xff0000)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.performAttack());
 
-        bg.setStrokeStyle(4, 0xffffff);
+        bg.setStrokeStyle(3, 0xffffff);
 
         const text = this.add.text(0, 0, "ATTACK!", {
             fontSize: '28px', color: '#fff', fontStyle: 'bold'
