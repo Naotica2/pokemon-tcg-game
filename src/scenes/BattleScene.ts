@@ -377,7 +377,15 @@ export default class BattleScene extends Phaser.Scene {
             fontSize: '16px', color: '#ff5555'
         })
             .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => this.scene.start('HomeScene'));
+            .on('pointerdown', async () => {
+                // Call Surrender Logic
+                // We don't await strictly because we want to leave immediately usually,
+                // but for cleanup it's better to wait or show "Leaving..."
+                const { error } = await supabase.rpc('surrender_match', { _match_id: this.matchId });
+                if (error) console.error("Surrender failed", error);
+
+                this.scene.start('HomeScene');
+            });
 
         // END TURN BUTTON
         const endTurnBtn = this.add.text(this.scale.width - 100, this.scale.height - 100, "END TURN", {
