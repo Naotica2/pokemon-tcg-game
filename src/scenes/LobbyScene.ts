@@ -95,11 +95,12 @@ export default class LobbyScene extends Phaser.Scene {
         // Raise button higher on mobile to avoid bottom nav/gesture areas
         // Increased to 180 to be extra safe
         // Raise button higher on mobile to avoid bottom nav/gesture areas
-        const height = this.cameras.main.height;
-        const footerY = height - (isMobile ? (height * 0.15) : 100); // 15% from bottom on mobile
+        // FIXED: Use Safe hardcoded offset and setScrollFactor(0)
+        const footerY = this.scale.height - (isMobile ? 220 : 120);
 
         // Create Room Button
         const btn = this.add.container(this.scale.width / 2, footerY);
+        btn.setScrollFactor(0).setDepth(2000); // UI Layer
 
         const btnW = isMobile ? 220 : 300;
         const btnH = isMobile ? 60 : 70;

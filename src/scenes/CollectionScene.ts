@@ -310,8 +310,11 @@ export default class CollectionScene extends Phaser.Scene {
         container.add(nameText);
 
 
+
         // 6. In Party Indicator
-        if (this.currentDeck.includes(card.card_id)) {
+        // Compare as strings to be safe
+        const inParty = this.currentDeck.some(id => String(id) === String(card.card_id));
+        if (inParty) {
             const partyBadge = this.add.rectangle(0, 0, this.CARD_WIDTH, 30, 0x00e676, 0.9);
             const partyText = this.add.text(0, 0, "IN PARTY", {
                 fontSize: '14px', color: '#000', fontStyle: 'bold'
@@ -630,8 +633,8 @@ export default class CollectionScene extends Phaser.Scene {
 
         const isMobile = this.scale.width < 500;
         const height = this.scale.height;
-        // Raise UI higher to avoid being hidden (20% from bottom on mobile)
-        const uiY = height - (isMobile ? (height * 0.20) : 100);
+        // Raise UI higher to avoid being hidden (Safe Zone)
+        const uiY = height - (isMobile ? 220 : 120);
         this.deckUIContainer = this.add.container(0, uiY).setScrollFactor(0).setDepth(1000);
 
         // Background Bar
@@ -658,13 +661,24 @@ export default class CollectionScene extends Phaser.Scene {
         }).setOrigin(0.5);
         saveBtn.add([saveBg, saveTxt]);
 
-        this.deckUIContainer.add([bg, this.deckCountText, saveBtn]);
+        // RESET BUTTON (To clear stale IDs)
+        const resetBtn = this.add.text(this.scale.width / 2, isMobile ? 85 : 100, "RESET PARTY", {
+            fontSize: '12px', color: '#ff5555', backgroundColor: '#222', padding: { x: 5, y: 5 }
+        })
+            .setOrigin(0.5)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => {
+                this.currentDeck = [];
+                this.toggleDeckMode(); // Refresh visuals
+            });
+
+        this.deckUIContainer.add([bg, this.deckCountText, saveBtn, resetBtn]);
     }
 
     private toggleCardInDeck(card: CardData, container: Phaser.GameObjects.Container) {
         if (!this.isDeckMode) return;
 
-        const idx = this.currentDeck.indexOf(card.card_id);
+        const idx = this.currentDeck.findIndex(id => String(id) === String(card.card_id));
         if (idx >= 0) {
             // Remove
             this.currentDeck.splice(idx, 1);
