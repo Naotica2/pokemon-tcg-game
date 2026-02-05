@@ -471,48 +471,49 @@ export default class BattleScene extends Phaser.Scene {
 
         // Use a more adaptive scale factor
         if (isPortrait) {
-            // In portrait, width is the bottleneck
-            this.scaleFactor = (w / 375) * 0.85; // Base on typical mobile width
+            // In portrait, we want it to feel big! 
+            // Boosting from 0.85 to 1.1 to satisfy the "too small" feedback
+            this.scaleFactor = (w / 375) * 1.05;
         } else {
             this.scaleFactor = Math.min(scaleX, scaleY);
         }
 
-        // Clamp scale factor to reasonable limits
-        this.scaleFactor = Phaser.Math.Clamp(this.scaleFactor, 0.4, 1.2);
+        // Clamp scale factor to reasonable limits - slightly higher max for mobile
+        this.scaleFactor = Phaser.Math.Clamp(this.scaleFactor, 0.4, 1.4);
 
         // --- PLAYER ZONES ---
         this.playerZone = this.add.container(0, 0);
 
-        // Hand: Bottom Edge - Adjust based on orientation to avoid browser UI
-        const handY = isPortrait ? h - (80 * this.scaleFactor) : h * 0.90;
+        // Hand: Bottom Edge - Very close to bottom but visible
+        const handY = isPortrait ? h - (70 * this.scaleFactor) : h * 0.90;
         this.playerHand = this.add.container(cx, handY);
         this.playerHand.setScale(this.scaleFactor);
 
-        // Bench: Lower Area
-        const pBenchY = isPortrait ? h * 0.75 : h * 0.78;
+        // Bench: Lower Area - Condensed for larger cards
+        const pBenchY = isPortrait ? h * 0.77 : h * 0.78;
         this.playerBench = this.add.container(cx, pBenchY);
-        this.playerBench.setScale(this.scaleFactor * 0.9); // Slightly smaller bench
+        this.playerBench.setScale(this.scaleFactor * 0.85); // Slightly smaller bench to fit 5
 
         // Active: Lower-Center
-        const pActiveY = isPortrait ? h * 0.58 : h * 0.62;
+        const pActiveY = isPortrait ? h * 0.59 : h * 0.62;
         this.playerActive = this.add.container(cx, pActiveY);
         this.playerActive.setScale(this.scaleFactor);
 
         // --- ENEMY ZONES ---
         this.enemyZone = this.add.container(0, 0);
 
-        // Enemy Hand: Top Edge - Move down slightly in portrait
-        const eHandY = isPortrait ? (70 * this.scaleFactor) : h * 0.08;
+        // Enemy Hand: Top Edge
+        const eHandY = isPortrait ? (60 * this.scaleFactor) : h * 0.08;
         this.enemyHand = this.add.container(cx, eHandY);
         this.enemyHand.setScale(this.scaleFactor);
 
         // Enemy Bench: Upper Area
-        const eBenchY = isPortrait ? h * 0.22 : h * 0.18;
+        const eBenchY = isPortrait ? h * 0.20 : h * 0.18;
         this.enemyBench = this.add.container(cx, eBenchY);
-        this.enemyBench.setScale(this.scaleFactor * 0.9);
+        this.enemyBench.setScale(this.scaleFactor * 0.85);
 
         // Enemy Active: Upper-Center
-        const eActiveY = isPortrait ? h * 0.40 : h * 0.35;
+        const eActiveY = isPortrait ? h * 0.38 : h * 0.35;
         this.enemyActive = this.add.container(cx, eActiveY);
         this.enemyActive.setScale(this.scaleFactor);
 
@@ -520,10 +521,10 @@ export default class BattleScene extends Phaser.Scene {
         this.createPlaceholders();
 
         // Deck (Bottom Right)
-        const deckX = isPortrait ? w * 0.85 : w * 0.92;
-        const deckY = isPortrait ? h * 0.70 : h * 0.88; // Move up in portrait so it's not behind fingers
+        const deckX = isPortrait ? w * 0.88 : w * 0.92;
+        const deckY = isPortrait ? h * 0.77 : h * 0.88;
         this.playerDeck = this.add.container(deckX, deckY);
-        this.playerDeck.setScale(this.scaleFactor * 0.7);
+        this.playerDeck.setScale(this.scaleFactor * 0.65);
         this.playerDeck.add(this.add.rectangle(0, 0, 100, 140, 0x333333, 0.5).setStrokeStyle(1, 0x666666));
         this.playerDeck.add(this.add.text(0, 0, "DECK", { fontSize: '14px' }).setOrigin(0.5));
 
