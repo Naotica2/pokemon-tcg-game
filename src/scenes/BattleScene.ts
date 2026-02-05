@@ -222,9 +222,18 @@ export default class BattleScene extends Phaser.Scene {
                 onComplete: () => dText.destroy()
             });
 
-            // Floating Damage
-            if (dmgP1 > 0) this.showFloatingText(this.playerActive.x, this.playerActive.y, `-${dmgP1}`, 0xff0000);
-            if (dmgP2 > 0) this.showFloatingText(this.enemyActive.x, this.enemyActive.y, `-${dmgP2}`, 0xff0000);
+            // Floating Damage (MAPPED BY IDENTITY)
+            // dmgP1 is always damage dealt TO Player 1
+            // dmgP2 is always damage dealt TO Player 2
+
+            const isP1 = (this.userId === matchData.player1_id);
+
+            // My Damage Received = If I am P1, dmgP1. If I am P2, dmgP2.
+            const dmgToMe = isP1 ? dmgP1 : dmgP2;
+            const dmgToOpp = isP1 ? dmgP2 : dmgP1;
+
+            if (dmgToMe > 0) this.showFloatingText(this.playerActive.x, this.playerActive.y, `-${dmgToMe}`, 0xff0000);
+            if (dmgToOpp > 0) this.showFloatingText(this.enemyActive.x, this.enemyActive.y, `-${dmgToOpp}`, 0xff0000);
 
             this.lastSeenEvent = matchData.updated_at;
         } else if (state.last_event && this.lastSeenEvent !== matchData.updated_at) {
