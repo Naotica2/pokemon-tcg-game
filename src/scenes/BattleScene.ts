@@ -481,8 +481,7 @@ export default class BattleScene extends Phaser.Scene {
 
         // Hand (Bottom Edge)
         // We will layout cards dynamically in renderHand
-        // FIX: Moving up higher to prevent bottom clipping, especially on hover
-        this.playerHand = this.add.container(cx, h - (isMobile ? 100 : 140));
+        this.playerHand = this.add.container(cx, h - (isMobile ? 60 : 80));
 
         // Deck & Discard (Bottom Right Corner)
         // Safe Zone: padding from edges
@@ -516,8 +515,9 @@ export default class BattleScene extends Phaser.Scene {
             this.enemyBench.add(slot);
         }
 
-        // Enemy Hand (Top Edge - Hidden/Backs)
-        this.enemyHand = this.add.container(cx, -50); // Hiding mostly offscreen or just top edge
+        // Enemy Hand (Top Edge - Visible Backs)
+        // Fixed: Moved down so they are visible (not cut off)
+        this.enemyHand = this.add.container(cx, isMobile ? 60 : 80);
 
         this.add.existing(this.playerZone);
         this.add.existing(this.enemyZone);
