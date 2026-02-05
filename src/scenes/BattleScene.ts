@@ -355,9 +355,9 @@ export default class BattleScene extends Phaser.Scene {
         const maxHp = 100;
         const hpPercent = Phaser.Math.Clamp(currentHp / maxHp, 0, 1);
 
-        const barW = 130;
-        const barH = 18;
-        const barY = 120; // Below card
+        const barW = 140;
+        const barH = 20;
+        const barY = isEnemy ? -120 : 120; // Above for enemy, below for player
 
         const hpBg = this.add.rectangle(0, barY, barW, barH, 0x000000, 0.8).setStrokeStyle(1, 0x444444);
         const hpFill = this.add.rectangle(-barW / 2, barY, barW * hpPercent, barH,
@@ -365,7 +365,7 @@ export default class BattleScene extends Phaser.Scene {
         ).setOrigin(0, 0.5);
 
         const hpText = this.add.text(0, barY, `${currentHp}/${maxHp} HP`, {
-            fontSize: '12px', color: '#fff', fontStyle: 'bold'
+            fontSize: '14px', color: '#fff', fontStyle: 'bold'
         }).setOrigin(0.5);
 
         container.add([card, hpBg, hpFill, hpText]);
@@ -472,37 +472,36 @@ export default class BattleScene extends Phaser.Scene {
         // --- PLAYER ZONES ---
         this.playerZone = this.add.container(0, 0);
 
-        // Hand: Move up from bottom (Percent based)
-        // Desktop: bottom 12%, Mobile: bottom 15%
-        const handY = h * 0.88;
+        // Hand: Bottom Edge
+        const handY = h * 0.90;
         this.playerHand = this.add.container(cx, handY);
         this.playerHand.setScale(this.scaleFactor);
 
-        // Bench: Middle-Lower
-        const pBenchY = h * 0.72;
+        // Bench: Lower Area
+        const pBenchY = h * 0.78;
         this.playerBench = this.add.container(cx, pBenchY);
         this.playerBench.setScale(this.scaleFactor);
 
-        // Active: Center-Lower
-        const pActiveY = h * 0.55;
+        // Active: Lower-Center
+        const pActiveY = h * 0.62;
         this.playerActive = this.add.container(cx, pActiveY);
         this.playerActive.setScale(this.scaleFactor);
 
         // --- ENEMY ZONES ---
         this.enemyZone = this.add.container(0, 0);
 
-        // Enemy Hand: Move down from top (avoid bezel/notch)
+        // Enemy Hand: Top Edge
         const eHandY = h * 0.08;
         this.enemyHand = this.add.container(cx, eHandY);
         this.enemyHand.setScale(this.scaleFactor);
 
-        // Enemy Bench: Middle-Upper
-        const eBenchY = h * 0.22;
+        // Enemy Bench: Upper Area
+        const eBenchY = h * 0.18;
         this.enemyBench = this.add.container(cx, eBenchY);
         this.enemyBench.setScale(this.scaleFactor);
 
-        // Enemy Active: Center-Upper
-        const eActiveY = h * 0.40;
+        // Enemy Active: Upper-Center
+        const eActiveY = h * 0.35;
         this.enemyActive = this.add.container(cx, eActiveY);
         this.enemyActive.setScale(this.scaleFactor);
 
