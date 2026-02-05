@@ -215,6 +215,19 @@ export default class BattleScene extends Phaser.Scene {
             // Format Modifier Text
             const modStr = mod1 > 0 ? `+${mod1}` : (mod1 < 0 ? `${mod1}` : '');
 
+            // Battle Info Toast (P1 vs P2)
+            const dText = this.add.text(this.scale.width / 2, this.scale.height / 2,
+                `[${n1}:${r1}(${b1})] vs [${n2}:${r2}(${b2})]\n${t1} vs ${t2} ${modStr ? `(${modStr})` : ''}`,
+                { fontSize: '16px', backgroundColor: '#000', color: '#fff', align: 'center' }
+            ).setOrigin(0.5).setDepth(3000)
+                .setAlpha(1).setScale(1);
+
+            this.tweens.add({
+                targets: dText, y: dText.y - 50, alpha: 0,
+                duration: 3000, delay: 1000,
+                onComplete: () => dText.destroy()
+            });
+
             // Identity Logic
             if (matchData.player1_id) this.player1Id = matchData.player1_id;
             // Also try to recover P1 ID from state.players keys if possible (First inserted key? Unreliable but hinting)
