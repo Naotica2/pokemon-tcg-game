@@ -83,7 +83,7 @@ export default class LobbyScene extends Phaser.Scene {
     }
 
     private createHeader() {
-        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA (V7)", {
+        this.add.text(this.scale.width / 2, 60, "BATTLE ARENA", {
             fontSize: '36px',
             color: '#fff',
             fontStyle: 'bold',

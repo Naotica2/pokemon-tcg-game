@@ -158,7 +158,7 @@ export default class CollectionScene extends Phaser.Scene {
         const fontSize = isMobile ? '28px' : '40px';
         const padding = isMobile ? 20 : 40;
 
-        const title = this.add.text(padding, 50, "COLLECTION (V7)", {
+        const title = this.add.text(padding, 50, "MY COLLECTION", {
             fontFamily: Theme.fonts.header.fontFamily, fontSize: fontSize, color: '#fff'
         }).setOrigin(0, 0.5);
 
